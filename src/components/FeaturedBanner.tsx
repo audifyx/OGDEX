@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getListings, Listing, fmtUsd } from "../lib/api";
 import { Megaphone, ExternalLink } from "lucide-react";
+import Verified from "./Verified";
 
 export default function FeaturedBanner() {
   const [ads, setAds] = useState<Listing[]>([]);
@@ -21,7 +22,7 @@ export default function FeaturedBanner() {
                 : <div className="w-11 h-11 rounded-full bg-panel2 grid place-items-center text-xs text-muted shrink-0">{(a.symbol || "?").slice(0, 3)}</div>}
               <div className="min-w-0 flex-1">
                 <div className="font-semibold truncate flex items-center gap-1.5">
-                  {a.project_name || a.symbol || "Project"}
+                  {a.project_name || a.symbol || "Project"}<Verified />
                   <span className="pill bg-accent2/20 text-accent2 text-[10px] uppercase">{a.chain}</span>
                 </div>
                 <div className="text-xs text-muted truncate">

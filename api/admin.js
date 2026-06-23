@@ -32,12 +32,23 @@ export default async function handler(req, res) {
     }
     const series = Object.entries(byDay).sort().slice(-30).map(([d, c]) => ({ day: d, count: c }));
     const topTokens = Object.entries(byToken).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([ref, c]) => ({ ref, views: c }));
+    const byPath = {};
+    for (const e of events) { if (e.path) byPath[e.path] = (byPath[e.path] || 0) + 1; }
+    const topPaths = Object.entries(byPath).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([path, c]) => ({ path, count: c }));
+    const all = [...pending, ...approved, ...rejected];
+    const byChain = {}; const byTier = {};
+    for (const l of all) { byChain[l.chain] = (byChain[l.chain] || 0) + 1; byTier[l.tier] = (byTier[l.tier] || 0) + 1; }
+    const featured = approved.filter((l) => l.featured);
+    const revenue = approved.reduce((a, l) => a + (l.tier === "express" ? 60 : 40), 0);
+    const now2 = Date.now();
+    const subs24 = all.filter((l) => new Date(l.created_at).getTime() >= now2 - 864e5).length;
     return send(res, 200, {
       ok: true,
       stats: {
         totalEvents: events.length, views24, views7,
         pending: pending.length, approved: approved.length, rejected: rejected.length,
-        byType, series, topTokens,
+        totalListings: all.length, featured: featured.length, revenue, subs24,
+        byType, series, topTokens, topPaths, byChain, byTier,
       },
       pending, approved, rejected,
     });

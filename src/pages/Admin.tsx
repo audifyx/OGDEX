@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { adminGet, adminAction, fmtNum, short } from "../lib/api";
-import { Lock, Eye, Users, CheckCircle2, XCircle, Star, Trash2, Loader2, BarChart3, Clock } from "lucide-react";
+import { Lock, Eye, Users, CheckCircle2, XCircle, Star, Trash2, Loader2, BarChart3, Clock, DollarSign, BadgeCheck, Rocket } from "lucide-react";
 
 const LS_KEY = "ogdex_admin_pass";
 
@@ -59,6 +59,14 @@ export default function Admin() {
         <Stat icon={BarChart3} label="Total events" value={fmtNum(s.totalEvents)} />
       </div>
 
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+        <Stat icon={DollarSign} label="Est. revenue" value={"$" + fmtNum(s.revenue)} accent />
+        <Stat icon={BadgeCheck} label="Total listings" value={fmtNum(s.totalListings)} />
+        <Stat icon={Star} label="Featured" value={fmtNum(s.featured)} />
+        <Stat icon={Rocket} label="Submissions 24h" value={fmtNum(s.subs24)} />
+        <Stat icon={XCircle} label="Rejected" value={fmtNum(s.rejected)} />
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-4 mb-5">
         <div className="card p-4 lg:col-span-2">
           <div className="text-sm font-semibold mb-3">Daily activity (30d)</div>
@@ -80,6 +88,13 @@ export default function Admin() {
             {(!s.topTokens || !s.topTokens.length) && <div className="text-muted text-sm">No views yet.</div>}
           </div>
         </div>
+      </div>
+
+      <div className="grid md:grid-cols-4 gap-4 mb-5">
+        <Breakdown title="Listings by chain" data={s.byChain} />
+        <Breakdown title="Listings by tier" data={s.byTier} />
+        <Breakdown title="Events by type" data={s.byType} />
+        <PathList title="Top pages" rows={s.topPaths} />
       </div>
 
       <Section title={`Pending listings (${data?.pending?.length || 0})`}>
@@ -121,6 +136,21 @@ function Section({ title, children }: { title: string; children: any }) {
   return <div className="mb-5"><div className="text-sm font-semibold mb-2">{title}</div><div className="space-y-2">{children}</div></div>;
 }
 function Empty({ text }: { text: string }) { return <div className="card p-6 text-center text-muted text-sm">{text}</div>; }
+function Breakdown({ title, data }: { title: string; data?: Record<string, number> }) {
+  const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const max = Math.max(1, ...entries.map((e) => e[1]));
+  return <div className="card p-4"><div className="text-sm font-semibold mb-3">{title}</div><div className="space-y-2">
+    {entries.length ? entries.map(([k, v]) => (
+      <div key={k} className="text-xs"><div className="flex justify-between mb-0.5"><span className="text-muted capitalize truncate">{k}</span><span>{v}</span></div>
+        <div className="h-1.5 bg-panel2 rounded-full overflow-hidden"><div className="h-full bg-accent" style={{ width: `${(v / max) * 100}%` }} /></div></div>
+    )) : <div className="text-muted text-xs">No data.</div>}
+  </div></div>;
+}
+function PathList({ title, rows }: { title: string; rows?: { path: string; count: number }[] }) {
+  return <div className="card p-4"><div className="text-sm font-semibold mb-3">{title}</div><div className="space-y-1.5 text-xs">
+    {(rows || []).length ? rows!.map((r) => <div key={r.path} className="flex justify-between"><span className="text-muted truncate max-w-[140px]">{r.path}</span><span>{r.count}</span></div>) : <div className="text-muted">No data.</div>}
+  </div></div>;
+}
 function ListingRow({ l, actions }: { l: any; actions: any }) {
   return (
     <div className="card p-3 flex items-center gap-3">

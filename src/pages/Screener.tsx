@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { getScreener, search, getListings, Row, Listing, fmtUsd, compact, short } from "../lib/api";
 import TokenLogo from "../components/TokenLogo";
 import Change from "../components/Change";
+import Verified from "../components/Verified";
 import FeaturedBanner from "../components/FeaturedBanner";
 import { Flame, Sprout, Sparkles, ArrowUpDown, Loader2, Droplets, TrendingUp, Crown, Star, Rocket, BadgeCheck } from "lucide-react";
 
@@ -132,7 +133,7 @@ export default function Screener() {
                         <TokenLogo src={r.icon} sym={r.symbol} />
                         <div className="min-w-0">
                           <div className="font-semibold truncate max-w-[180px] flex items-center gap-1.5">
-                            {r.symbol || short(r.mint)}{r.isVerified && <span className="text-accent text-[10px]" title="Verified">✓</span>}
+                            {r.symbol || short(r.mint)}{r.isVerified && <Verified />}
                           </div>
                           <div className="text-muted text-xs truncate max-w-[180px]">{r.name || short(r.mint)}</div>
                         </div>
@@ -172,7 +173,7 @@ function ListedView({ listings, loading }: { listings: Listing[]; loading: boole
             {a.logo_url ? <img src={a.logo_url} className="w-12 h-12 rounded-full object-cover border border-line shrink-0" />
               : <div className="w-12 h-12 rounded-full bg-panel2 grid place-items-center text-xs text-muted shrink-0">{(a.symbol || "?").slice(0, 3)}</div>}
             <div className="min-w-0 flex-1">
-              <div className="font-semibold truncate flex items-center gap-1.5">{a.project_name || a.symbol || "Project"}
+              <div className="font-semibold truncate flex items-center gap-1.5">{a.project_name || a.symbol || "Project"}<Verified />
                 <span className="pill bg-panel2 text-muted text-[10px] uppercase">{a.chain}</span>
                 {a.featured && <span className="pill bg-accent2/20 text-accent2 text-[10px]">AD</span>}</div>
               <div className="text-xs text-muted truncate">{a.description || short(a.contract_address)}</div>
