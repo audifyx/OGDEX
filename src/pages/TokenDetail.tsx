@@ -7,6 +7,9 @@ import Change from "../components/Change";
 import ScoreRing from "../components/ScoreRing";
 import Verified from "../components/Verified";
 import Copyable from "../components/Copyable";
+import PriceChart from "../components/PriceChart";
+import PredictiveIntel from "../components/PredictiveIntel";
+import CapitalFlow from "../components/CapitalFlow";
 import {
   ArrowLeft, Copy, Check, ShieldCheck, ShieldAlert, ExternalLink, Loader2, Lock, Flame,
   TrendingUp, FileDown, Users, Activity, Crown, Wallet, AlertTriangle, Droplets, Clock, RefreshCw,
@@ -17,7 +20,7 @@ export default function TokenDetail() {
   const [d, setD] = useState<TokenDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [tab, setTab] = useState<"overview" | "holders" | "trades" | "forensics">("overview");
+  const [tab, setTab] = useState<"overview" | "predictive" | "smartmoney" | "holders" | "trades" | "forensics">("overview");
 
   useEffect(() => {
     let on = true; setLoading(true);
@@ -84,6 +87,9 @@ export default function TokenDetail() {
         </div>
       </div>
 
+      {/* Price chart */}
+      <div className="mb-4"><PriceChart mint={mint} symbol={symbol} chain={(meta.chain || "solana")} /></div>
+
       {/* Key metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         <Stat label="Market Cap" value={fmtUsd(t.mcap ?? meta.mcap, { compact: true })} />
@@ -129,12 +135,14 @@ export default function TokenDetail() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-panel border border-line rounded-lg p-1 mb-4 w-fit">
-        {[["overview", "Overview"], ["holders", `Holders ${holders.length ? `(${holders.length})` : ""}`], ["trades", `Live Trades ${trades.length ? `(${trades.length})` : ""}`], ["forensics", "Forensics"]].map(([id, label]) => (
+        {[["overview", "Overview"], ["predictive", "Predictive"], ["smartmoney", "Smart Money"], ["holders", `Holders ${holders.length ? `(${holders.length})` : ""}`], ["trades", `Live Trades ${trades.length ? `(${trades.length})` : ""}`], ["forensics", "Forensics"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as any)} className={`btn ${tab === id ? "bg-accent/15 text-accent" : "text-muted hover:text-white"}`}>{label}</button>
         ))}
       </div>
 
       {tab === "overview" && <Overview d={d} t={t} meta={meta} safety={safety} trades={trades} />}
+      {tab === "predictive" && <PredictiveIntel d={d} />}
+      {tab === "smartmoney" && <CapitalFlow d={d} />}
       {tab === "holders" && <HoldersTable holders={holders} price={price} />}
       {tab === "trades" && <TradesTable trades={trades} mint={mint} onRefresh={() => getToken(mint).then(setD)} />}
       {tab === "forensics" && <Forensics d={d} meta={meta} safety={safety} />}

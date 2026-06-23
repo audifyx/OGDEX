@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getConfig, submitListing, AppConfig } from "../lib/api";
-import { Copy, Check, Rocket, Clock, Zap, Share2, Globe, ShieldCheck, Send } from "lucide-react";
+import { Copy, Check, Rocket, Clock, Zap, Share2, Globe, ShieldCheck, Send, BadgeCheck } from "lucide-react";
+import Verified from "../components/Verified";
 
 export default function Submit() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
@@ -28,8 +29,8 @@ export default function Submit() {
   if (done) return (
     <div className="max-w-xl mx-auto card p-8 text-center mt-6">
       <div className="w-14 h-14 rounded-full bg-up/15 grid place-items-center mx-auto mb-4"><Check className="w-7 h-7 text-up" /></div>
-      <h1 className="text-xl font-bold">Submission received!</h1>
-      <p className="text-muted text-sm mt-2">We auto-scanned <span className="text-white font-mono">{done.symbol || done.contract_address.slice(0, 8)}…</span> and queued it for review. Once your payment is confirmed it will be permanently listed{tier === "express" ? " within 6 hours" : " within 24 hours"}.</p>
+      <h1 className="text-xl font-bold flex items-center justify-center gap-2">Submission received! <Verified size={18} /></h1>
+      <p className="text-muted text-sm mt-2">We auto-scanned <span className="text-white font-mono">{done.symbol || done.contract_address.slice(0, 8)}…</span> and queued it for review. Once your payment is confirmed it will be permanently listed{tier === "express" ? " within 6 hours" : " within 24 hours"} with your <span className="text-accent font-semibold">Verified badge</span>.</p>
       <p className="text-muted text-xs mt-3">Questions? DM <a className="text-accent" href="https://t.me/ogscanofficial" target="_blank">@ogscanofficial</a> on Telegram.</p>
       <button onClick={() => { setDone(null); setForm({ contract_address: "", chain: "solana", project_name: "", banner_url: "", contact: "", links: {} }); }} className="btn bg-panel2 text-white mt-5">Submit another</button>
     </div>
@@ -41,6 +42,23 @@ export default function Submit() {
         <div className="inline-flex items-center gap-1.5 pill bg-accent/15 text-accent mb-3"><Rocket className="w-3.5 h-3.5" /> Project Listing</div>
         <h1 className="text-3xl font-bold tracking-tight">Get your token listed on OG DEX</h1>
         <p className="text-muted mt-2 max-w-2xl mx-auto">Permanently listed and shared to our community every time new tokens drop. We post to our X community (200+) and Telegram. Visible to 55+ and growing users on OG Scan.</p>
+      </div>
+
+      {/* Verified incentive */}
+      <div className="card p-5 mb-6 border-accent/40 glow relative overflow-hidden">
+        <div className="absolute -right-6 -top-6 opacity-10"><Verified size={120} /></div>
+        <div className="flex items-start gap-3 relative">
+          <div className="w-10 h-10 rounded-full bg-accent/15 grid place-items-center shrink-0"><BadgeCheck className="w-5 h-5 text-accent" /></div>
+          <div>
+            <div className="font-semibold flex items-center gap-1.5">Every listing gets the OG DEX Verified badge <Verified size={16} /></div>
+            <p className="text-sm text-muted mt-1">Listed projects display the blue verified checkmark <Verified size={12} className="inline align-[-1px]" /> across the screener and your token page. It signals to traders that your project is reviewed, on-chain-scanned, and officially listed, building instant trust and standing out from the thousands of unverified tokens.</p>
+            <div className="flex flex-wrap gap-2 mt-3 text-xs">
+              <span className="pill bg-up/10 text-up inline-flex items-center gap-1"><Check className="w-3 h-3" /> Trust signal in search results</span>
+              <span className="pill bg-up/10 text-up inline-flex items-center gap-1"><Check className="w-3 h-3" /> Shared to X + Telegram on drop</span>
+              <span className="pill bg-up/10 text-up inline-flex items-center gap-1"><Check className="w-3 h-3" /> Permanent placement</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Pricing */}
@@ -108,7 +126,7 @@ export default function Submit() {
           <button disabled={submitting} className="btn bg-accent text-black font-semibold w-full inline-flex items-center justify-center gap-2 disabled:opacity-60">
             {submitting ? "Submitting…" : <>Submit project <Send className="w-3.5 h-3.5" /></>}
           </button>
-          <p className="text-[11px] text-muted text-center">Submitting adds your project to the review queue. It goes live after payment is confirmed. Any chain supported.</p>
+          <p className="text-[11px] text-muted text-center flex items-center justify-center gap-1">Goes live with your Verified badge <Verified size={11} /> after payment is confirmed. Any chain supported.</p>
         </form>
       </div>
     </div>

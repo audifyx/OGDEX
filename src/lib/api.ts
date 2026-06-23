@@ -18,7 +18,7 @@ export interface Listing {
 export interface TokenDetailData {
   mint: string; token: Row | null; raw: any; score: any; flags: any;
   verdict: string | null; momentum: number | null; momentumLabel: string | null;
-  meta: any; safety: any; error?: string;
+  meta: any; safety: any; intel?: any; error?: string;
 }
 export interface AppConfig {
   payWallet: string;
@@ -37,6 +37,10 @@ export const getScreener = (type: string, interval: string, limit = 100) =>
   j<{ rows: Row[]; count?: number; error?: string }>(`/api/screener?type=${type}&interval=${interval}&limit=${limit}`);
 export const search = (q: string) => j<{ rows: Row[] }>(`/api/search?q=${encodeURIComponent(q)}`);
 export const getToken = (mint: string) => j<TokenDetailData>(`/api/token?mint=${mint}`);
+export interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number; }
+export interface ChartData { ok: boolean; candles: Candle[]; pool?: string | null; poolName?: string | null; dex?: string | null; interval?: string; error?: string; note?: string; }
+export const getChart = (mint: string, interval = "1h", limit = 200, chain = "solana") =>
+  j<ChartData>(`/api/chart?mint=${mint}&interval=${interval}&limit=${limit}&chain=${chain}`);
 export const getConfig = () => j<AppConfig>(`/api/config`);
 export const getListings = (featuredOnly = false) =>
   j<{ rows: Listing[] }>(`/api/listings${featuredOnly ? "?featured=1" : ""}`);
