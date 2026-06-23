@@ -5,6 +5,8 @@ import "./index.css";
 import Layout from "./components/Layout";
 import Screener from "./pages/Screener";
 import TokenDetail from "./pages/TokenDetail";
+import Submit from "./pages/Submit";
+import Admin from "./pages/Admin";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -13,6 +15,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route element={<Layout />}>
           <Route path="/" element={<Screener />} />
           <Route path="/token/:mint" element={<TokenDetail />} />
+          <Route path="/submit" element={<Submit />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
       </Routes>
     </BrowserRouter>

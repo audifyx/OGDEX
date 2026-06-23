@@ -1,0 +1,139 @@
+import { useState, useEffect } from "react";
+import { adminGet, adminAction, fmtNum, short } from "../lib/api";
+import { Lock, Eye, Users, CheckCircle2, XCircle, Star, Trash2, Loader2, BarChart3, Clock } from "lucide-react";
+
+const LS_KEY = "ogdex_admin_pass";
+
+export default function Admin() {
+  const [pass, setPass] = useState(localStorage.getItem(LS_KEY) || "");
+  const [authed, setAuthed] = useState(false);
+  const [input, setInput] = useState("");
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = async (p: string) => {
+    setLoading(true); setErr("");
+    const d = await adminGet(p);
+    if (d.ok) { setData(d); setAuthed(true); setPass(p); localStorage.setItem(LS_KEY, p); }
+    else { setErr("Wrong password."); setAuthed(false); }
+    setLoading(false);
+  };
+  useEffect(() => { if (pass) load(pass); /* eslint-disable-next-line */ }, []);
+
+  const act = async (action: string, id?: string, extra?: any) => {
+    await adminAction(pass, action, id, extra);
+    load(pass);
+  };
+
+  if (!authed) return (
+    <div className="max-w-sm mx-auto card p-6 mt-16">
+      <div className="flex items-center gap-2 font-semibold mb-4"><Lock className="w-4 h-4 text-accent" /> Admin access</div>
+      <form onSubmit={(e) => { e.preventDefault(); load(input); }}>
+        <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Enter password"
+          className="w-full bg-panel2 border border-line rounded-lg px-3 py-2.5 text-sm outline-none focus:border-accent/60" autoFocus />
+        {err && <div className="text-down text-xs mt-2">{err}</div>}
+        <button className="btn bg-accent text-black font-semibold w-full mt-3">{loading ? "Checking…" : "Enter"}</button>
+      </form>
+    </div>
+  );
+
+  const s = data?.stats || {};
+  const maxDay = Math.max(1, ...(s.series || []).map((x: any) => x.count));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-2xl font-bold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-accent" /> Admin Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <button onClick={() => load(pass)} className="btn bg-panel2 text-muted hover:text-white">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}</button>
+          <button onClick={() => { localStorage.removeItem(LS_KEY); setAuthed(false); setPass(""); }} className="btn bg-panel2 text-muted hover:text-white">Lock</button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+        <Stat icon={Eye} label="Views 24h" value={fmtNum(s.views24)} />
+        <Stat icon={Users} label="Views 7d" value={fmtNum(s.views7)} />
+        <Stat icon={Clock} label="Pending" value={fmtNum(s.pending)} accent />
+        <Stat icon={CheckCircle2} label="Approved" value={fmtNum(s.approved)} />
+        <Stat icon={BarChart3} label="Total events" value={fmtNum(s.totalEvents)} />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4 mb-5">
+        <div className="card p-4 lg:col-span-2">
+          <div className="text-sm font-semibold mb-3">Daily activity (30d)</div>
+          <div className="flex items-end gap-1 h-32">
+            {(s.series || []).map((d: any) => (
+              <div key={d.day} className="flex-1 group relative" title={`${d.day}: ${d.count}`}>
+                <div className="bg-accent/70 hover:bg-accent rounded-t" style={{ height: `${(d.count / maxDay) * 100}%`, minHeight: 2 }} />
+              </div>
+            ))}
+            {(!s.series || !s.series.length) && <div className="text-muted text-sm">No data yet.</div>}
+          </div>
+        </div>
+        <div className="card p-4">
+          <div className="text-sm font-semibold mb-3">Top viewed tokens</div>
+          <div className="space-y-1.5 text-sm">
+            {(s.topTokens || []).slice(0, 8).map((t: any) => (
+              <div key={t.ref} className="flex justify-between"><span className="text-muted truncate">{t.ref}</span><span>{t.views}</span></div>
+            ))}
+            {(!s.topTokens || !s.topTokens.length) && <div className="text-muted text-sm">No views yet.</div>}
+          </div>
+        </div>
+      </div>
+
+      <Section title={`Pending listings (${data?.pending?.length || 0})`}>
+        {(data?.pending || []).map((l: any) => (
+          <ListingRow key={l.id} l={l} actions={
+            <>
+              <button onClick={() => act("approve", l.id)} className="btn bg-up/15 text-up inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Approve</button>
+              <button onClick={() => act("reject", l.id)} className="btn bg-down/15 text-down inline-flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> Reject</button>
+            </>
+          } />
+        ))}
+        {!data?.pending?.length && <Empty text="No pending submissions." />}
+      </Section>
+
+      <Section title={`Approved listings (${data?.approved?.length || 0})`}>
+        {(data?.approved || []).map((l: any) => (
+          <ListingRow key={l.id} l={l} actions={
+            <>
+              {l.featured
+                ? <button onClick={() => act("unfeature", l.id)} className="btn bg-accent2/20 text-accent2 inline-flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-current" /> Featured</button>
+                : <button onClick={() => act("feature", l.id, { featured_rank: 1 })} className="btn bg-panel2 text-muted hover:text-white inline-flex items-center gap-1"><Star className="w-3.5 h-3.5" /> Feature</button>}
+              <button onClick={() => { if (confirm("Delete listing?")) act("delete", l.id); }} className="btn bg-panel2 text-down hover:bg-down/10"><Trash2 className="w-3.5 h-3.5" /></button>
+            </>
+          } />
+        ))}
+        {!data?.approved?.length && <Empty text="No approved listings yet." />}
+      </Section>
+    </div>
+  );
+}
+
+function Stat({ icon: Icon, label, value, accent }: any) {
+  return <div className={`card p-4 ${accent ? "border-accent/40" : ""}`}>
+    <div className="text-xs text-muted flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" /> {label}</div>
+    <div className="text-2xl font-bold mt-1">{value}</div>
+  </div>;
+}
+function Section({ title, children }: { title: string; children: any }) {
+  return <div className="mb-5"><div className="text-sm font-semibold mb-2">{title}</div><div className="space-y-2">{children}</div></div>;
+}
+function Empty({ text }: { text: string }) { return <div className="card p-6 text-center text-muted text-sm">{text}</div>; }
+function ListingRow({ l, actions }: { l: any; actions: any }) {
+  return (
+    <div className="card p-3 flex items-center gap-3">
+      {l.logo_url ? <img src={l.logo_url} className="w-10 h-10 rounded-full object-cover border border-line shrink-0" />
+        : <div className="w-10 h-10 rounded-full bg-panel2 grid place-items-center text-[10px] text-muted shrink-0">{(l.symbol || "?").slice(0, 3)}</div>}
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold truncate flex items-center gap-1.5">{l.project_name || l.symbol || "Project"}
+          <span className="pill bg-panel2 text-muted text-[10px] uppercase">{l.chain}</span>
+          <span className={`pill text-[10px] ${l.tier === "express" ? "bg-accent/15 text-accent" : "bg-panel2 text-muted"}`}>{l.tier}</span>
+        </div>
+        <div className="text-xs text-muted font-mono truncate">{short(l.contract_address)}{l.contact ? ` · ${l.contact}` : ""}</div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">{actions}</div>
+    </div>
+  );
+}

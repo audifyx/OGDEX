@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getToken, TokenDetailData, fmtUsd, compact, fmtNum, short } from "../lib/api";
+import { getToken, track, TokenDetailData, fmtUsd, compact, fmtNum, short } from "../lib/api";
 import TokenLogo from "../components/TokenLogo";
 import Change from "../components/Change";
 import ScoreRing from "../components/ScoreRing";
@@ -15,7 +15,7 @@ export default function TokenDetail() {
   useEffect(() => {
     let on = true;
     setLoading(true);
-    getToken(mint).then((x) => { if (on) { setD(x); setLoading(false); } });
+    getToken(mint).then((x) => { if (on) { setD(x); setLoading(false); try { track("token_view", { token_ref: x?.token?.symbol || mint, meta: { mint } }); } catch {} } });
     return () => { on = false; };
   }, [mint]);
 

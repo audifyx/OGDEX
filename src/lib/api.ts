@@ -7,26 +7,48 @@ export interface Row {
   change5m?: number | null; change1h?: number | null; change6h?: number | null; change24h?: number | null;
   organicScore?: number | null; organicScoreLabel?: string | null;
   isVerified?: boolean; dev?: string | null; circSupply?: number | null;
-  totalSupply?: number | null; decimals?: number | null; graduatedAt?: string | null;
+  totalSupply?: number | null; decimals?: number | null;
 }
-
+export interface Listing {
+  id: string; contract_address: string; chain: string; project_name?: string;
+  symbol?: string; logo_url?: string; banner_url?: string; description?: string;
+  links?: Record<string, string>; tier: string; status: string; featured?: boolean;
+  featured_rank?: number; metadata?: any; views?: number; created_at?: string; approved_at?: string;
+}
 export interface TokenDetailData {
   mint: string; token: Row | null; raw: any; score: any; flags: any;
   verdict: string | null; momentum: number | null; momentumLabel: string | null;
   meta: any; safety: any; error?: string;
 }
-
-async function j<T>(url: string): Promise<T> {
-  const r = await fetch(url);
-  return r.json();
+export interface AppConfig {
+  payWallet: string;
+  pricing: { tier: string; price: number; sla: string; label: string }[];
+  chains: string[]; telegram: string; community: any;
 }
 
-export const getScreener = (type: string, interval: string, limit = 50) =>
-  j<{ rows: Row[]; error?: string }>(`/api/screener?type=${type}&interval=${interval}&limit=${limit}`);
+async function j<T>(url: string, opts?: RequestInit): Promise<T> {
+  const r = await fetch(url, opts);
+  return r.json();
+}
+const postJson = (url: string, body: any) =>
+  j(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+export const getScreener = (type: string, interval: string, limit = 100) =>
+  j<{ rows: Row[]; count?: number; error?: string }>(`/api/screener?type=${type}&interval=${interval}&limit=${limit}`);
 export const search = (q: string) => j<{ rows: Row[] }>(`/api/search?q=${encodeURIComponent(q)}`);
 export const getToken = (mint: string) => j<TokenDetailData>(`/api/token?mint=${mint}`);
+export const getConfig = () => j<AppConfig>(`/api/config`);
+export const getListings = (featuredOnly = false) =>
+  j<{ rows: Listing[] }>(`/api/listings${featuredOnly ? "?featured=1" : ""}`);
+export const submitListing = (data: any) => postJson(`/api/listings`, data) as Promise<{ ok: boolean; listing?: Listing; error?: string }>;
+export const track = (type: string, extra: any = {}) => {
+  try { navigator.sendBeacon?.("/api/track", JSON.stringify({ type, ...extra })); }
+  catch { fetch("/api/track", { method: "POST", body: JSON.stringify({ type, ...extra }), keepalive: true }); }
+};
+export const adminGet = (pass: string) => j<any>(`/api/admin?pass=${encodeURIComponent(pass)}`);
+export const adminAction = (pass: string, action: string, id?: string, extra: any = {}) =>
+  postJson(`/api/admin`, { pass, action, id, ...extra }) as Promise<{ ok: boolean; error?: string }>;
 
-// formatters
 export function fmtUsd(n?: number | null, opts: { compact?: boolean } = {}): string {
   if (n == null || !isFinite(n)) return "—";
   if (opts.compact) return "$" + compact(n);

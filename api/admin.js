@@ -1,0 +1,74 @@
+import { send, dbSelect, dbUpdate, dbDelete, dbRpcCount, readBody, ADMIN_PASS } from "./_lib.js";
+
+function auth(pass) { return pass && String(pass) === String(ADMIN_PASS); }
+
+export default async function handler(req, res) {
+  const url = new URL(req.url, "http://x");
+  if (req.method === "POST") return action(req, res);
+  // GET dashboard data
+  const pass = url.searchParams.get("pass");
+  if (!auth(pass)) return send(res, 401, { ok: false, error: "unauthorized" });
+  try {
+    const [pending, approved, rejected, events] = await Promise.all([
+      dbSelect("ogdex_listings", "status=eq.pending&order=created_at.desc&limit=200"),
+      dbSelect("ogdex_listings", "status=eq.approved&order=approved_at.desc&limit=200"),
+      dbSelect("ogdex_listings", "status=eq.rejected&order=updated_at.desc&limit=100"),
+      dbSelect("ogdex_events", "order=created_at.desc&limit=5000"),
+    ]);
+    const now = Date.now();
+    const since = (days) => now - days * 864e5;
+    const byDay = {}; const byType = {}; const byToken = {};
+    let views24 = 0, views7 = 0;
+    for (const e of events) {
+      const t = new Date(e.created_at).getTime();
+      const day = new Date(e.created_at).toISOString().slice(0, 10);
+      byDay[day] = (byDay[day] || 0) + 1;
+      byType[e.type] = (byType[e.type] || 0) + 1;
+      if (e.type === "token_view" && e.token_ref) byToken[e.token_ref] = (byToken[e.token_ref] || 0) + 1;
+      if (e.type === "page_view" || e.type === "token_view") {
+        if (t >= since(1)) views24++;
+        if (t >= since(7)) views7++;
+      }
+    }
+    const series = Object.entries(byDay).sort().slice(-30).map(([d, c]) => ({ day: d, count: c }));
+    const topTokens = Object.entries(byToken).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([ref, c]) => ({ ref, views: c }));
+    return send(res, 200, {
+      ok: true,
+      stats: {
+        totalEvents: events.length, views24, views7,
+        pending: pending.length, approved: approved.length, rejected: rejected.length,
+        byType, series, topTokens,
+      },
+      pending, approved, rejected,
+    });
+  } catch (e) {
+    return send(res, 200, { ok: false, error: String(e?.message || e) });
+  }
+}
+
+async function action(req, res) {
+  try {
+    const b = await readBody(req);
+    if (!auth(b.pass)) return send(res, 401, { ok: false, error: "unauthorized" });
+    const id = b.id;
+    if (!id && b.action !== "ping") return send(res, 400, { ok: false, error: "id required" });
+    const q = `id=eq.${id}`;
+    switch (b.action) {
+      case "ping": return send(res, 200, { ok: true });
+      case "approve": await dbUpdate("ogdex_listings", q, { status: "approved", approved_at: new Date().toISOString(), updated_at: new Date().toISOString() }); break;
+      case "reject": await dbUpdate("ogdex_listings", q, { status: "rejected", updated_at: new Date().toISOString() }); break;
+      case "feature": await dbUpdate("ogdex_listings", q, { featured: true, featured_rank: Number(b.featured_rank) || 1, updated_at: new Date().toISOString() }); break;
+      case "unfeature": await dbUpdate("ogdex_listings", q, { featured: false, featured_rank: 0, updated_at: new Date().toISOString() }); break;
+      case "update": await dbUpdate("ogdex_listings", q, { ...sanitize(b.patch), updated_at: new Date().toISOString() }); break;
+      case "delete": await dbDelete("ogdex_listings", q); break;
+      default: return send(res, 400, { ok: false, error: "unknown action" });
+    }
+    return send(res, 200, { ok: true });
+  } catch (e) {
+    return send(res, 400, { ok: false, error: String(e?.message || e) });
+  }
+}
+function sanitize(p = {}) {
+  const allow = ["project_name", "symbol", "logo_url", "banner_url", "description", "links", "tier", "chain", "featured_rank"];
+  const out = {}; for (const k of allow) if (k in p) out[k] = p[k]; return out;
+}
