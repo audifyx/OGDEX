@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Search, Zap, Rocket, Wallet, Star, ChevronDown, Coins } from "lucide-react";
+import { Search, Zap, Rocket, Wallet, Star, ChevronDown, Coins, Radio } from "lucide-react";
 import { track, getWatchlist, short } from "../lib/api";
 
 const isAddr = (v: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v.trim());
@@ -35,6 +35,8 @@ export default function Layout() {
           </Link>
           <nav className="hidden md:flex items-center gap-1 text-sm">
             <Link to="/" className="btn text-muted hover:text-white inline-flex items-center gap-1.5"><Coins className="w-3.5 h-3.5" /> Coins</Link>
+            <Link to="/kol" className="btn text-muted hover:text-white inline-flex items-center gap-1.5"><Radio className="w-3.5 h-3.5" /> KOL Scanner</Link>
+            <Link to="/kol" className="btn text-muted hover:text-white inline-flex items-center gap-1.5"><Radio className="w-3.5 h-3.5" /> KOL Scanner</Link>
           </nav>
 
           <form onSubmit={go} className="flex-1 max-w-xl relative">

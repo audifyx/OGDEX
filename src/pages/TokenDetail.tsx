@@ -8,12 +8,15 @@ import ScoreRing from "../components/ScoreRing";
 import Verified from "../components/Verified";
 import Copyable from "../components/Copyable";
 import WalletLink from "../components/WalletLink";
+import KolBadge from "../components/KolBadge";
+import KolWhaleActivity from "../components/KolWhaleActivity";
+import { getKolDirectory, KolDirEntry } from "../lib/kol";
 import PriceChart from "../components/PriceChart";
 import PredictiveIntel from "../components/PredictiveIntel";
 import CapitalFlow from "../components/CapitalFlow";
 import {
   ArrowLeft, Copy, Check, ShieldCheck, ShieldAlert, ExternalLink, Loader2, Lock, Flame,
-  TrendingUp, FileDown, Users, Activity, Crown, Wallet, AlertTriangle, Droplets, Clock, RefreshCw, Radio,
+  TrendingUp, FileDown, Users, Activity, Crown, Wallet, AlertTriangle, Droplets, Clock, RefreshCw, Radio, BadgeCheck,
 } from "lucide-react";
 
 export default function TokenDetail() {
@@ -21,7 +24,12 @@ export default function TokenDetail() {
   const [d, setD] = useState<TokenDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [tab, setTab] = useState<"overview" | "predictive" | "smartmoney" | "holders" | "trades" | "forensics">("overview");
+  const [tab, setTab] = useState<"overview" | "predictive" | "smartmoney" | "kolwhale" | "holders" | "trades" | "forensics">("overview");
+  const [dir, setDir] = useState<Record<string, KolDirEntry>>({});
+
+  useEffect(() => { getKolDirectory().then(setDir); }, []);
+
+  useEffect(() => { getKolDirectory().then(setDir).catch(() => {}); }, []);
 
   useEffect(() => {
     let on = true; setLoading(true);
@@ -155,7 +163,7 @@ export default function TokenDetail() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-panel border border-line rounded-lg p-1 mb-4 w-fit">
-        {[["overview", "Overview"], ["predictive", "Predictive"], ["smartmoney", "Smart Money"], ["holders", `Holders ${holders.length ? `(${holders.length})` : ""}`], ["trades", `Live Trades ${trades.length ? `(${trades.length})` : ""}`], ["forensics", "Forensics"]].map(([id, label]) => (
+        {[["overview", "Overview"], ["predictive", "Predictive"], ["smartmoney", "Smart Money"], ["kolwhale", "KOL & Whale"], ["holders", `Holders ${holders.length ? `(${holders.length})` : ""}`], ["trades", `Live Trades ${trades.length ? `(${trades.length})` : ""}`], ["forensics", "Forensics"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as any)} className={`btn ${tab === id ? "bg-accent/15 text-accent" : "text-muted hover:text-white"}`}>{label}</button>
         ))}
       </div>
@@ -163,7 +171,9 @@ export default function TokenDetail() {
       {tab === "overview" && <Overview d={d} t={t} meta={meta} safety={safety} trades={trades} />}
       {tab === "predictive" && <PredictiveIntel d={d} />}
       {tab === "smartmoney" && <CapitalFlow d={d} />}
-      {tab === "holders" && <HoldersTable holders={holders} price={price} />}
+      {tab === "kolwhale" && <KolWhaleActivity d={d} dir={dir} />}
+      {tab === "kolwhale" && <KolWhaleActivity d={d} dir={dir} />}
+      {tab === "holders" && <HoldersTable holders={holders} price={price} dir={dir} />}
       {tab === "trades" && <TradesTable trades={trades} mint={mint} onRefresh={() => getToken(mint).then(setD)} />}
       {tab === "forensics" && <Forensics d={d} meta={meta} safety={safety} />}
     </div>
@@ -235,12 +245,23 @@ function Overview({ d, t, meta, safety, trades }: any) {
 }
 
 /* ---------- Holders ---------- */
-function HoldersTable({ holders, price }: { holders: any[]; price?: number }) {
+function HoldersTable({ holders, price, dir = {} }: { holders: any[]; price?: number; dir?: Record<string, KolDirEntry> }) {
   if (!holders.length) return <Empty text="Holder data unavailable for this token." />;
   const maxPct = Math.max(...holders.map((h) => h.pct || 0), 1);
+  const kolHolders = holders.filter((h) => dir[h.owner]);
+  const kolPct = kolHolders.reduce((s, h) => s + (h.pct || 0), 0);
   return (
+    <div className="space-y-3">
+    {kolHolders.length > 0 && (
+      <div className="card p-3 px-4 flex items-center gap-2 flex-wrap text-sm">
+        <BadgeCheck className="w-4 h-4 text-accent" />
+        <span className="font-semibold">{kolHolders.length} KOL{kolHolders.length > 1 ? "s" : ""} holding {kolPct.toFixed(2)}% of supply</span>
+        <span className="text-muted text-xs">·</span>
+        <div className="flex gap-1.5 flex-wrap">{kolHolders.slice(0, 8).map((h) => <span key={h.owner} className="pill bg-accent/10 text-accent text-[10px]">{dir[h.owner].name}</span>)}</div>
+      </div>
+    )}
     <div className="card overflow-hidden">
-      <div className="px-4 py-3 border-b border-line text-sm font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-accent" /> Top {holders.length} Holders <span className="text-muted font-normal text-xs ml-1">click a wallet to copy</span></div>
+      <div className="px-4 py-3 border-b border-line text-sm font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-accent" /> Top {holders.length} Holders <span className="text-muted font-normal text-xs ml-1">KOLs auto-labeled · click wallet to view holdings</span></div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
           <thead><tr className="text-muted text-xs border-b border-line">
@@ -251,7 +272,7 @@ function HoldersTable({ holders, price }: { holders: any[]; price?: number }) {
             {holders.map((h) => (
               <tr key={h.rank} className="border-b border-line/50 hover:bg-panel2/40">
                 <td className="px-4 py-2 text-muted">{h.rank}</td>
-                <td className="px-2 py-2"><WalletLink address={h.owner} /></td>
+                <td className="px-2 py-2">{dir[h.owner] ? <KolBadge kol={dir[h.owner]} /> : <WalletLink address={h.owner} />}</td>
                 <td className="px-2 py-2"><span className={`pill text-[10px] ${labelCls(h.label)}`}>{h.label}</span></td>
                 <td className="px-2 py-2 text-right">{compact(h.uiAmount)}</td>
                 <td className="px-2 py-2"><div className="flex items-center gap-2"><div className="flex-1 h-1.5 bg-panel2 rounded-full overflow-hidden"><div className="h-full bg-accent" style={{ width: `${((h.pct || 0) / maxPct) * 100}%` }} /></div><span className="text-xs w-12 text-right">{h.pct != null ? h.pct.toFixed(2) + "%" : "—"}</span></div></td>
@@ -261,6 +282,7 @@ function HoldersTable({ holders, price }: { holders: any[]; price?: number }) {
           </tbody>
         </table>
       </div>
+    </div>
     </div>
   );
 }
