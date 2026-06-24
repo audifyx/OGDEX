@@ -67,7 +67,6 @@ async function profile(res, address) {
   } catch (e) { return send(res, 200, { ok: false, error: String(e?.message || e) }); }
 }
 
-// single-wallet recent swaps (KOL profile)
 async function activity(res, sp) {
   const address = (sp.get("activity") || "").trim();
   const limit = Math.min(Number(sp.get("limit")) || 12, 25);
@@ -83,16 +82,16 @@ async function activity(res, sp) {
   } catch (e) { return send(res, 200, { ok: false, error: String(e?.message || e), activity: [] }); }
 }
 
-// global live feed (reads cache + lazily ingests a rotating batch)
 async function feed(res, sp) {
   const limit = Math.min(Number(sp.get("limit")) || 60, 120);
-  const side = sp.get("side"); const kolId = sp.get("kolId");
+  const side = sp.get("side"); const kolId = sp.get("kolId"); const token = sp.get("token");
   cache(res, 5, 20);
   try { await ingestBatch(sp); } catch {}
   try {
     let q = `select=*&order=tx_timestamp.desc&limit=${limit}`;
     if (side) q += `&tx_type=eq.${side}`;
     if (kolId) q += `&kol_id=eq.${kolId}`;
+    if (token) q += `&or=(token_in.eq.${token},token_out.eq.${token})`;
     const rows = await dbSelect("ogdex_kol_feed", q);
     return send(res, 200, { ok: true, count: rows.length, feed: rows.map(fmtFeed) });
   } catch (e) { return send(res, 200, { ok: false, error: String(e?.message || e), feed: [] }); }
