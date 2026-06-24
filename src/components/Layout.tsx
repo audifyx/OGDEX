@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Search, Zap, Rocket, Wallet, Star, ChevronDown, Coins, Radio } from "lucide-react";
+import { Search, Zap, ShoppingBag, Wallet, Star, ChevronDown, Coins, Radio } from "lucide-react";
 import { track, getWatchlist, short } from "../lib/api";
 import LiveStats from "./LiveStats";
 
@@ -70,8 +70,8 @@ export default function Layout() {
               )}
             </div>
 
-            <Link to="/submit" className="btn bg-accent text-black font-semibold hover:bg-accent/90 inline-flex items-center gap-1.5 shrink-0">
-              <Rocket className="w-3.5 h-3.5" /> <span className="hidden sm:inline">List Your Token</span><span className="sm:hidden">List</span>
+            <Link to="/store" className="btn bg-accent text-black font-semibold hover:bg-accent/90 inline-flex items-center gap-1.5 shrink-0">
+              <ShoppingBag className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Store</span><span className="sm:hidden">Store</span>
             </Link>
           </div>
         </header>
@@ -93,10 +93,10 @@ export default function Layout() {
           }`}>
             <Radio className="w-3.5 h-3.5" /> KOL
           </Link>
-          <Link to="/submit" className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
-            loc.pathname.startsWith("/submit") ? "text-accent border-b-2 border-accent" : "text-muted"
+          <Link to="/store" className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+            loc.pathname.startsWith("/store") || loc.pathname.startsWith("/submit") || loc.pathname.startsWith("/boost") ? "text-accent border-b-2 border-accent" : "text-muted"
           }`}>
-            <Rocket className="w-3.5 h-3.5" /> List
+            <ShoppingBag className="w-3.5 h-3.5" /> Store
           </Link>
         </nav>
       </div>
@@ -110,7 +110,7 @@ export default function Layout() {
           <span className="inline-flex items-center gap-1"><Zap className="w-3 h-3 text-accent" /> Advanced & Designed by <a href="https://x.com/ogscanbackup" target="_blank" rel="noreferrer" className="text-accent hover:underline font-semibold">@ogscanbackup</a></span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link to="/submit" className="hover:text-accent">List token (35% off first 25)</Link>
+          <Link to="/store" className="hover:text-accent">Store — List &amp; Boost</Link>
           <span>•</span>
           <a href="https://t.me/ogscanner" target="_blank" rel="noreferrer" className="hover:text-accent">Telegram @ogscanner</a>
           <span>•</span>
