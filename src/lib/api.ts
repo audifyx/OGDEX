@@ -8,6 +8,12 @@ export interface Row {
   organicScore?: number | null; organicScoreLabel?: string | null;
   isVerified?: boolean; dev?: string | null; circSupply?: number | null;
   totalSupply?: number | null; decimals?: number | null;
+  holderChange24h?: number | null; liquidityChange24h?: number | null; volumeChange24h?: number | null;
+  numTraders?: number | null; numOrganicBuyers?: number | null; ageDays?: number | null;
+  createdAt?: string | null; tags?: string[];
+  audit?: { mintAuthorityDisabled?: boolean; freezeAuthorityDisabled?: boolean; topHoldersPercentage?: number | null; devBalancePercentage?: number | null; devMints?: number | null };
+  firstPool?: { id?: string; createdAt?: string } | null;
+  stats?: Record<string, any>;
 }
 export interface Listing {
   id: string; contract_address: string; chain: string; project_name?: string;
@@ -41,6 +47,9 @@ export interface Candle { time: number; open: number; high: number; low: number;
 export interface ChartData { ok: boolean; candles: Candle[]; pool?: string | null; poolName?: string | null; dex?: string | null; interval?: string; error?: string; note?: string; }
 export const getChart = (mint: string, interval = "1h", limit = 200, chain = "solana") =>
   j<ChartData>(`/api/chart?mint=${mint}&interval=${interval}&limit=${limit}&chain=${chain}`);
+export interface WalletHolding { mint: string; uiAmount: number; decimals: number; priceUsd: number | null; usdValue: number; change24h?: number | null; name?: string | null; symbol?: string | null; image?: string | null; mcap?: number | null; }
+export interface WalletPortfolio { ok: boolean; address: string; sol: number; solPrice: number; solUsd: number; totalUsd: number; tokenCount: number; holdings: WalletHolding[]; error?: string; }
+export const getWallet = (address: string) => j<WalletPortfolio>(`/api/wallet?address=${address}`);
 export const getConfig = () => j<AppConfig>(`/api/config`);
 export const getListings = (featuredOnly = false) =>
   j<{ rows: Listing[] }>(`/api/listings${featuredOnly ? "?featured=1" : ""}`);
@@ -79,4 +88,19 @@ export function fmtPct(n?: number | null): string {
 export function short(addr?: string | null): string {
   if (!addr) return "—";
   return addr.slice(0, 4) + "…" + addr.slice(-4);
+}
+
+
+/* ---- watched wallets (Phantom-style watchlist, localStorage) ---- */
+const WL_KEY = "ogdex_watchlist";
+export function getWatchlist(): string[] {
+  try { return JSON.parse(localStorage.getItem(WL_KEY) || "[]"); } catch { return []; }
+}
+export function isWatched(addr: string): boolean { return getWatchlist().includes(addr); }
+export function toggleWatch(addr: string): boolean {
+  const list = getWatchlist();
+  const i = list.indexOf(addr);
+  if (i >= 0) list.splice(i, 1); else list.unshift(addr);
+  localStorage.setItem(WL_KEY, JSON.stringify(list.slice(0, 50)));
+  return list.includes(addr);
 }

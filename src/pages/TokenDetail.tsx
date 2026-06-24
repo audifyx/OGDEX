@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getToken, track, TokenDetailData, fmtUsd, compact, fmtNum, short } from "../lib/api";
+import { getToken, track, TokenDetailData, fmtUsd, compact, fmtNum, fmtPct, short } from "../lib/api";
 import { timeAgo } from "../lib/format";
 import TokenLogo from "../components/TokenLogo";
 import Change from "../components/Change";
 import ScoreRing from "../components/ScoreRing";
 import Verified from "../components/Verified";
 import Copyable from "../components/Copyable";
+import WalletLink from "../components/WalletLink";
 import PriceChart from "../components/PriceChart";
 import PredictiveIntel from "../components/PredictiveIntel";
 import CapitalFlow from "../components/CapitalFlow";
 import {
   ArrowLeft, Copy, Check, ShieldCheck, ShieldAlert, ExternalLink, Loader2, Lock, Flame,
-  TrendingUp, FileDown, Users, Activity, Crown, Wallet, AlertTriangle, Droplets, Clock, RefreshCw,
+  TrendingUp, FileDown, Users, Activity, Crown, Wallet, AlertTriangle, Droplets, Clock, RefreshCw, Radio,
 } from "lucide-react";
 
 export default function TokenDetail() {
@@ -28,9 +29,21 @@ export default function TokenDetail() {
     return () => { on = false; };
   }, [mint]);
 
+  useEffect(() => {
+    if (tab !== "trades" && tab !== "overview") return;
+    const id = setInterval(() => { getToken(mint).then((x) => x && setD(x)); }, 12000);
+    return () => clearInterval(id);
+  }, [tab, mint]);
+
   if (loading) return <div className="grid place-items-center py-24 text-muted"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   if (!d || (!d.token && !d.meta)) return (
-    <div className="text-center py-24"><p className="text-muted">Token not found.</p><Link to="/" className="text-accent text-sm mt-2 inline-block">← Back to screener</Link></div>
+    <div className="text-center py-24">
+      <p className="text-muted">No token found for this address.</p>
+      <div className="flex items-center justify-center gap-3 mt-3">
+        <Link to={`/wallet/${mint}`} className="btn bg-accent/15 text-accent inline-flex items-center gap-1.5"><Wallet className="w-3.5 h-3.5" /> View as wallet</Link>
+        <Link to="/" className="text-accent text-sm">← Back to screener</Link>
+      </div>
+    </div>
   );
 
   const t: any = d.token || {};
@@ -64,6 +77,7 @@ export default function TokenDetail() {
                 {verified && <Verified size={18} />}
                 {d.verdict && <span className="pill bg-accent/15 text-accent">{d.verdict}</span>}
                 {meta.isPumpFun && <span className="pill bg-panel2 text-muted">pump.fun</span>}
+                {(t.tags || []).slice(0, 4).map((tg: string) => <span key={tg} className="pill bg-panel2 text-muted text-[10px] capitalize">{tg}</span>)}
               </div>
               <div className="text-muted text-sm">{name}</div>
               <div className="mt-1"><Copyable text={mint} display={short(mint)} className="text-xs text-muted" /></div>
@@ -104,6 +118,12 @@ export default function TokenDetail() {
         <Stat label="Mint Auth" value={d.flags?.mintAuthorityDisabled ? "Renounced" : "Active"} good={d.flags?.mintAuthorityDisabled} />
         <Stat label="Freeze Auth" value={d.flags?.freezeAuthorityDisabled ? "Renounced" : "Active"} good={d.flags?.freezeAuthorityDisabled} />
         <Stat label="Risk Score" value={safety?.riskScore != null ? String(safety.riskScore) : "—"} good={(safety?.riskScore ?? 99) <= 20} />
+        <Stat label="Holders 24h" value={t.holderChange24h != null ? fmtPct(t.holderChange24h) : "—"} good={(t.holderChange24h ?? 0) > 0} />
+        <Stat label="Liquidity 24h" value={t.liquidityChange24h != null ? fmtPct(t.liquidityChange24h) : "—"} good={(t.liquidityChange24h ?? 0) >= 0} />
+        <Stat label="Volume 24h" value={t.volumeChange24h != null ? fmtPct(t.volumeChange24h) : "—"} good={(t.volumeChange24h ?? 0) >= 0} />
+        <Stat label="Traders 24h" value={fmtNum(t.numTraders ?? meta.numTraders24h)} />
+        <Stat label="Top 10 Holders" value={t.audit?.topHoldersPercentage != null ? t.audit.topHoldersPercentage.toFixed(1) + "%" : "—"} good={(t.audit?.topHoldersPercentage ?? 100) < 25} />
+        <Stat label="Dev Mints" value={t.audit?.devMints != null ? String(t.audit.devMints) : "—"} good={(t.audit?.devMints ?? 0) <= 1} />
       </div>
 
       {/* OG score + verdict + scores */}
@@ -157,7 +177,31 @@ function Overview({ d, t, meta, safety, trades }: any) {
   const total = buyVol + sellVol || 1; const bp = (buyVol / total) * 100;
   const buys = trades.filter((x: any) => x.side === "buy").length;
   const sells = trades.filter((x: any) => x.side === "sell").length;
+  const tf = t.stats || {};
+  const windows: [string, string][] = [["5m", "5m"], ["1h", "1H"], ["6h", "6H"], ["24h", "24H"]];
   return (
+    <div className="space-y-4">
+    <div className="card p-5">
+      <div className="text-sm font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-accent" /> Performance by Timeframe</div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
+          <thead><tr className="text-muted text-xs border-b border-line"><th className="text-left py-2">Window</th><th className="text-right py-2">Price</th><th className="text-right py-2">Volume</th><th className="text-right py-2">Buys</th><th className="text-right py-2">Sells</th><th className="text-right py-2">Traders</th><th className="text-right py-2">Net buyers</th></tr></thead>
+          <tbody>
+            {windows.map(([k, label]) => { const w = tf[k] || {}; return (
+              <tr key={k} className="border-b border-line/40 last:border-0">
+                <td className="py-2 font-semibold">{label}</td>
+                <td className="py-2 text-right"><Change v={w.priceChange} /></td>
+                <td className="py-2 text-right tabular-nums">{w.volume != null ? "$" + compact(w.volume) : "—"}</td>
+                <td className="py-2 text-right tabular-nums text-up">{fmtNum(w.numBuys)}</td>
+                <td className="py-2 text-right tabular-nums text-down">{fmtNum(w.numSells)}</td>
+                <td className="py-2 text-right tabular-nums">{fmtNum(w.numTraders)}</td>
+                <td className={`py-2 text-right tabular-nums ${(w.numNetBuyers ?? 0) >= 0 ? "text-up" : "text-down"}`}>{fmtNum(w.numNetBuyers)}</td>
+              </tr>
+            ); })}
+          </tbody>
+        </table>
+      </div>
+    </div>
     <div className="grid lg:grid-cols-2 gap-4">
       <div className="card p-5">
         <div className="text-sm font-semibold mb-3 flex items-center gap-2"><Flame className="w-4 h-4 text-accent" /> Market Microstructure</div>
@@ -186,6 +230,7 @@ function Overview({ d, t, meta, safety, trades }: any) {
         <Row label="DEX / pair" value={meta.pairDexId || "—"} />
       </div>
     </div>
+    </div>
   );
 }
 
@@ -206,7 +251,7 @@ function HoldersTable({ holders, price }: { holders: any[]; price?: number }) {
             {holders.map((h) => (
               <tr key={h.rank} className="border-b border-line/50 hover:bg-panel2/40">
                 <td className="px-4 py-2 text-muted">{h.rank}</td>
-                <td className="px-2 py-2"><Copyable text={h.owner} display={short(h.owner)} /></td>
+                <td className="px-2 py-2"><WalletLink address={h.owner} /></td>
                 <td className="px-2 py-2"><span className={`pill text-[10px] ${labelCls(h.label)}`}>{h.label}</span></td>
                 <td className="px-2 py-2 text-right">{compact(h.uiAmount)}</td>
                 <td className="px-2 py-2"><div className="flex items-center gap-2"><div className="flex-1 h-1.5 bg-panel2 rounded-full overflow-hidden"><div className="h-full bg-accent" style={{ width: `${((h.pct || 0) / maxPct) * 100}%` }} /></div><span className="text-xs w-12 text-right">{h.pct != null ? h.pct.toFixed(2) + "%" : "—"}</span></div></td>
@@ -225,7 +270,7 @@ function TradesTable({ trades, mint, onRefresh }: { trades: any[]; mint: string;
   if (!trades.length) return <Empty text="No recent trades available." />;
   return (
     <div className="card overflow-hidden">
-      <div className="px-4 py-3 border-b border-line text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-accent" /> Live Trades
+      <div className="px-4 py-3 border-b border-line text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-accent" /> Live Trades <span className="pill bg-up/10 text-up text-[10px] inline-flex items-center gap-1"><Radio className="w-3 h-3 animate-pulse" /> LIVE</span>
         <button onClick={onRefresh} className="ml-auto btn bg-panel2 text-muted hover:text-white inline-flex items-center gap-1 text-xs"><RefreshCw className="w-3 h-3" /> Refresh</button>
       </div>
       <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
@@ -242,8 +287,8 @@ function TradesTable({ trades, mint, onRefresh }: { trades: any[]; mint: string;
                 <td className="px-2 py-2 text-right">{fmtUsd(t.priceUsd)}</td>
                 <td className="px-2 py-2 text-right">{compact(t.tokenAmount)}</td>
                 <td className="px-2 py-2 text-right">{fmtUsd(t.volumeUsd, { compact: true })}</td>
-                <td className="px-2 py-2">{t.owner ? <Copyable text={t.owner} display={short(t.owner)} /> : "—"}</td>
-                <td className="px-4 py-2 text-muted">{t.dex || "—"}</td>
+                <td className="px-2 py-2">{t.owner ? <WalletLink address={t.owner} icon={false} /> : "—"}</td>
+                <td className="px-4 py-2 text-muted">{t.dex || "—"}{t.txHash && <a href={`https://solscan.io/tx/${t.txHash}`} target="_blank" rel="noreferrer" className="ml-1.5 text-accent/70 hover:text-accent"><ExternalLink className="w-3 h-3 inline" /></a>}</td>
               </tr>
             ))}
           </tbody>
@@ -259,7 +304,7 @@ function Forensics({ d, meta, safety }: any) {
     <div className="grid lg:grid-cols-2 gap-4">
       <div className="card p-5">
         <div className="text-sm font-semibold mb-3 flex items-center gap-2"><Wallet className="w-4 h-4 text-accent" /> Developer / Creator Intelligence</div>
-        <Row label="Creator wallet" value={safety?.creator ? <Copyable text={safety.creator} display={short(safety.creator)} /> : "—"} />
+        <Row label="Creator wallet" value={safety?.creator ? <WalletLink address={safety.creator} /> : "—"} />
         <Row label="Tokens created" value={safety?.creatorTokensCount != null ? String(safety.creatorTokensCount) : "—"} />
         <Row label="Mint authority" value={d.flags?.mintAuthorityDisabled ? "Renounced" : "Active"} good={d.flags?.mintAuthorityDisabled} />
         <Row label="Freeze authority" value={d.flags?.freezeAuthorityDisabled ? "Renounced" : "Active"} good={d.flags?.freezeAuthorityDisabled} />

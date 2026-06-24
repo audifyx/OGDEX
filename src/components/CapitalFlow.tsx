@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { TokenDetailData, fmtUsd, compact, short } from "../lib/api";
 import { computeCapitalFlow } from "../lib/predict";
 import { timeAgo } from "../lib/format";
-import Copyable from "./Copyable";
+import WalletLink from "./WalletLink";
 import { Banknote, ArrowDownRight, ArrowUpRight, Crown, Waves } from "lucide-react";
 
 export default function CapitalFlow({ d }: { d: TokenDetailData }) {
@@ -45,7 +45,7 @@ export default function CapitalFlow({ d }: { d: TokenDetailData }) {
           <div className="space-y-2">
             {f.whales.map((w, i) => (
               <div key={i} className="flex items-center justify-between bg-panel2/50 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2"><span className={`pill text-[10px] ${w.label === "whale" ? "bg-down/15 text-down" : "bg-yellow-500/15 text-yellow-400"}`}>{w.label}</span><Copyable text={w.owner} display={short(w.owner)} className="text-xs" /></div>
+                <div className="flex items-center gap-2"><span className={`pill text-[10px] ${w.label === "whale" ? "bg-down/15 text-down" : "bg-yellow-500/15 text-yellow-400"}`}>{w.label}</span><WalletLink address={w.owner} className="text-xs" /></div>
                 <div className="text-right"><div className="text-sm font-semibold">{w.pct.toFixed(2)}%</div>{w.usd != null && <div className="text-[10px] text-muted">{fmtUsd(w.usd, { compact: true })}</div>}</div>
               </div>
             ))}
@@ -74,7 +74,7 @@ function FlowList({ title, tone, trades, icon }: { title: string; tone: "up" | "
           {trades.map((t, i) => (
             <div key={i} className="flex items-center justify-between text-sm bg-panel2/40 rounded-lg px-3 py-1.5">
               <span className={`font-semibold ${tone === "up" ? "text-up" : "text-down"}`}>{fmtUsd(t.volumeUsd, { compact: true })}</span>
-              <span className="text-xs text-muted">{t.owner ? short(t.owner) : "—"}</span>
+              <span className="text-xs text-muted">{t.owner ? <WalletLink address={t.owner} icon={false} /> : "—"}</span>
               <span className="text-xs text-muted">{t.time ? timeAgo(t.time) + " ago" : "—"}</span>
             </div>
           ))}

@@ -1,37 +1,70 @@
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { Search, Zap, Rocket } from "lucide-react";
-import { track } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { Search, Zap, Rocket, Wallet, Star, ChevronDown, Coins } from "lucide-react";
+import { track, getWatchlist, short } from "../lib/api";
+
+const isAddr = (v: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v.trim());
 
 export default function Layout() {
   const [q, setQ] = useState("");
+  const [watchOpen, setWatchOpen] = useState(false);
+  const [watch, setWatch] = useState<string[]>([]);
   const nav = useNavigate();
   const loc = useLocation();
-  useEffect(() => { track("page_view", { path: loc.pathname }); }, [loc.pathname]);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { track("page_view", { path: loc.pathname }); setWatch(getWatchlist()); setWatchOpen(false); }, [loc.pathname]);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setWatchOpen(false); };
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const addr = isAddr(q);
   const go = (e: React.FormEvent) => {
     e.preventDefault();
-    const v = q.trim();
-    if (!v) return;
-    if (v.length >= 32 && !v.includes(" ")) nav(`/token/${v}`);
-    else nav(`/?q=${encodeURIComponent(v)}`);
+    const v = q.trim(); if (!v) return;
+    if (addr) nav(`/token/${v}`); else nav(`/?q=${encodeURIComponent(v)}`);
   };
+
   return (
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur">
-        <div className="max-w-[1500px] mx-auto px-4 h-14 flex items-center gap-4">
+        <div className="max-w-[1500px] mx-auto px-4 h-14 flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2 shrink-0">
             <span className="w-8 h-8 rounded-lg bg-accent/15 border border-accent/30 grid place-items-center text-accent font-mono font-bold">OG</span>
             <span className="font-bold tracking-tight text-lg hidden sm:block">OG<span className="text-accent">DEX</span></span>
           </Link>
           <nav className="hidden md:flex items-center gap-1 text-sm">
-            <Link to="/" className="btn text-muted hover:text-white">Coins</Link>
+            <Link to="/" className="btn text-muted hover:text-white inline-flex items-center gap-1.5"><Coins className="w-3.5 h-3.5" /> Coins</Link>
           </nav>
+
           <form onSubmit={go} className="flex-1 max-w-xl relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input value={q} onChange={(e) => setQ(e.target.value)}
-              placeholder="Search name, ticker, or paste a mint…"
-              className="w-full bg-panel border border-line rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:border-accent/60" />
+              placeholder="Search name, ticker, mint, or wallet…"
+              className="w-full bg-panel border border-line rounded-lg pl-9 pr-24 py-2 text-sm outline-none focus:border-accent/60" />
+            {addr && (
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-1">
+                <button type="submit" className="px-2 py-1 rounded-md text-xs bg-accent/15 text-accent font-semibold">Token</button>
+                <button type="button" onClick={() => nav(`/wallet/${q.trim()}`)} className="px-2 py-1 rounded-md text-xs bg-panel2 text-muted hover:text-white inline-flex items-center gap-1"><Wallet className="w-3 h-3" /> Wallet</button>
+              </div>
+            )}
           </form>
+
+          {/* Watching dropdown */}
+          <div className="relative" ref={ref}>
+            <button onClick={() => { setWatch(getWatchlist()); setWatchOpen((o) => !o); }} className="btn bg-panel2 text-muted hover:text-white inline-flex items-center gap-1.5 shrink-0">
+              <Star className="w-3.5 h-3.5" /><span className="hidden sm:inline">Watching</span>{watch.length > 0 && <span className="pill bg-accent/15 text-accent text-[10px] !px-1.5 !py-0">{watch.length}</span>}<ChevronDown className="w-3 h-3" />
+            </button>
+            {watchOpen && (
+              <div className="absolute right-0 mt-2 w-64 card p-1.5 z-40 shadow-xl">
+                <div className="text-[11px] uppercase tracking-wide text-muted px-2 py-1">Watched wallets</div>
+                {watch.length ? watch.map((w) => (
+                  <Link key={w} to={`/wallet/${w}`} onClick={() => setWatchOpen(false)} className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-panel2 text-sm font-mono"><Wallet className="w-3.5 h-3.5 text-accent" /> {short(w)}</Link>
+                )) : <div className="px-2 py-3 text-xs text-muted">No watched wallets yet. Open any wallet and tap <span className="text-white">Watch</span>.</div>}
+              </div>
+            )}
+          </div>
+
           <Link to="/submit" className="btn bg-accent text-black font-semibold hover:bg-accent/90 inline-flex items-center gap-1.5 shrink-0">
             <Rocket className="w-3.5 h-3.5" /> <span className="hidden sm:inline">List Your Token</span><span className="sm:hidden">List</span>
           </Link>
