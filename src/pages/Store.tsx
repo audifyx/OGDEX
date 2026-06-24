@@ -34,10 +34,10 @@ export default function Store() {
           </p>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between text-muted/70">
-              <span>Standard listing</span><span className="text-white font-medium">25 SOL</span>
+              <span>Standard listing</span><span className="text-white font-medium">$25</span>
             </div>
             <div className="flex justify-between text-muted/70">
-              <span>Express (24h review)</span><span className="text-white font-medium">75 SOL</span>
+              <span>Express (24h review)</span><span className="text-white font-medium">$75</span>
             </div>
           </div>
           <div className="mt-auto flex items-center gap-1 text-sm font-semibold text-accent group-hover:gap-2 transition-all">
