@@ -12,10 +12,8 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [featCa, setFeatCa] = useState("");
-  const [featSym, setFeatSym] = useState("");
-  const [featName, setFeatName] = useState("");
-  const [featIcon, setFeatIcon] = useState("");
-  const [featDesc, setFeatDesc] = useState("");
+  const [featToken, setFeatToken] = useState<any>(null);
+  const [featScanLoading, setFeatScanLoading] = useState(false);
   const [featLoading, setFeatLoading] = useState(false);
   const [featMsg, setFeatMsg] = useState("");
 
@@ -45,17 +43,36 @@ export default function Admin() {
     </div>
   );
 
+  // Auto-scan token metadata when CA is pasted
+  const scanFeatToken = async (ca: string) => {
+    setFeatCa(ca); setFeatToken(null); setFeatMsg("");
+    const v = ca.trim();
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v)) return;
+    setFeatScanLoading(true);
+    try {
+      const d = await fetch(`/api/token?mint=${v}`).then(r => r.json());
+      if (d?.token?.mint) setFeatToken(d.token);
+      else setFeatMsg("Token not found — check the address.");
+    } catch { setFeatMsg("Scan failed. Check the address."); }
+    finally { setFeatScanLoading(false); }
+  };
+
   const addFeatured = async () => {
-    if (!featCa.trim()) { setFeatMsg("Contract address is required."); return; }
+    if (!featCa.trim()) { setFeatMsg("Paste a contract address first."); return; }
     setFeatLoading(true); setFeatMsg("");
     try {
+      const t = featToken || {};
       const r = await adminAction(pass, "add_featured", "noop", {
-        mint: featCa.trim(), symbol: featSym.trim(), project_name: featName.trim(),
-        logo_url: featIcon.trim(), description: featDesc.trim(), chain: "solana",
+        mint: featCa.trim(),
+        symbol: t.symbol || "",
+        project_name: t.name || t.symbol || "",
+        logo_url: t.icon || "",
+        description: t.description || "",
+        chain: "solana",
       });
       if (r && r.ok === false) throw new Error(r.error || "Failed");
       setFeatMsg("Added to featured!");
-      setFeatCa(""); setFeatSym(""); setFeatName(""); setFeatIcon(""); setFeatDesc("");
+      setFeatCa(""); setFeatToken(null);
       setTimeout(() => load(pass), 800);
     } catch (e: any) { setFeatMsg("Error: " + (e.message || "unknown")); }
     finally { setFeatLoading(false); }
@@ -123,27 +140,47 @@ export default function Admin() {
       {/* Quick-Add Featured */}
       <Section title="Quick-Add to Featured Daily">
         <div className="space-y-3">
-          <p className="text-xs text-muted">Paste a CA to instantly add a token to the Featured Daily section — no listing form needed.</p>
-          <div className="grid sm:grid-cols-2 gap-2">
-            <input value={featCa} onChange={e => setFeatCa(e.target.value)}
-              placeholder="Token CA / mint address *" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40 font-mono col-span-2 sm:col-span-2" />
-            <input value={featSym} onChange={e => setFeatSym(e.target.value)}
-              placeholder="Symbol (e.g. PEPE)" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40" />
-            <input value={featName} onChange={e => setFeatName(e.target.value)}
-              placeholder="Project name" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40" />
-            <input value={featIcon} onChange={e => setFeatIcon(e.target.value)}
-              placeholder="Logo URL (optional)" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40 col-span-2 sm:col-span-2" />
+          {/* CA input — auto-scans on change */}
+          <div className="relative">
+            <input
+              value={featCa}
+              onChange={e => scanFeatToken(e.target.value)}
+              placeholder="Paste token contract address — metadata loads automatically"
+              className="card w-full p-3 text-sm bg-transparent outline-none placeholder:text-muted/40 font-mono pr-10"
+            />
+            {featScanLoading && (
+              <Loader2 className="w-4 h-4 animate-spin text-accent absolute right-3 top-1/2 -translate-y-1/2" />
+            )}
           </div>
-          <input value={featDesc} onChange={e => setFeatDesc(e.target.value)}
-            placeholder="Short description (optional)" className="card w-full p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40" />
+          {/* Token preview card */}
+          {featToken && (
+            <div className="card p-3 flex items-center gap-3 border-accent/30 bg-accent/5">
+              {featToken.icon
+                ? <img src={featToken.icon} className="w-10 h-10 rounded-full border border-line object-cover shrink-0" />
+                : <div className="w-10 h-10 rounded-full bg-panel2 grid place-items-center text-sm font-bold text-muted shrink-0">{(featToken.symbol||"?").slice(0,2)}</div>
+              }
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-white">{featToken.symbol} <span className="text-muted font-normal text-sm">{featToken.name}</span></div>
+                {featToken.mcap && <div className="text-xs text-muted">MC ${Number(featToken.mcap).toLocaleString()}</div>}
+                <div className="text-[10px] text-muted/50 font-mono truncate">{featCa.trim()}</div>
+              </div>
+              <CheckCircle2 className="w-5 h-5 text-up shrink-0" />
+            </div>
+          )}
+          {/* Action row */}
           <div className="flex items-center gap-3">
-            <button onClick={addFeatured} disabled={featLoading || !featCa.trim()}
-              className="btn bg-accent text-black font-bold inline-flex items-center gap-1.5 disabled:opacity-50">
+            <button
+              onClick={addFeatured}
+              disabled={featLoading || featScanLoading || !featCa.trim()}
+              className="btn bg-accent text-black font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+            >
               {featLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               Add to Featured
             </button>
             {featMsg && (
-              <span className={featMsg.startsWith("Added") ? "text-up text-sm" : "text-down text-sm"}>{featMsg}</span>
+              <span className={featMsg.startsWith("Added") ? "text-up text-sm" : "text-down text-sm"}>
+                {featMsg}
+              </span>
             )}
           </div>
         </div>
