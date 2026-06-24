@@ -55,7 +55,7 @@ export default function Screener() {
 
   const sorted = useMemo(() => {
     const arr = [...rows];
-    if (tab === "runners") return arr; // already sorted by gainers server-side
+    if (tab === "runners") return arr;
     arr.sort((a, b) => {
       const va = sort === "change" ? changeKeyEff(a) : (a as any)[sort];
       const vb = sort === "change" ? changeKeyEff(b) : (b as any)[sort];
@@ -69,35 +69,58 @@ export default function Screener() {
   return (
     <div>
       {!q && <FeaturedBanner />}
-      {!q && (
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold tracking-tight">Solana Token Screener</h1>
-          <p className="text-muted text-sm mt-1">Live markets ranked by volume, organic momentum and the OG Score. 400+ tokens, 100+ new daily.</p>
-        </div>
-      )}
-      {q && <h2 className="text-lg font-semibold mb-4">Results for “{q}”</h2>}
 
       {!q && (
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex flex-wrap gap-1 bg-panel border border-line rounded-lg p-1">
-            {TABS.map((t) => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`btn flex items-center gap-1.5 ${tab === t.id ? "bg-accent/15 text-accent" : "text-muted hover:text-white"}`}>
-                <t.icon className="w-3.5 h-3.5" /> {t.label}
-              </button>
-            ))}
-          </div>
-          {!cur.noInterval && (
-            <div className="flex gap-1 bg-panel border border-line rounded-lg p-1">
-              {INTERVALS.map((iv) => (
-                <button key={iv} onClick={() => setInterval(iv)}
-                  className={`btn ${interval === iv ? "bg-panel2 text-white" : "text-muted hover:text-white"}`}>{iv}</button>
-              ))}
+        <div className="mb-5">
+          <h1 className="text-xl font-bold tracking-tight">Solana Token Screener</h1>
+          <p className="text-muted text-xs mt-0.5">Live markets · organic momentum · OG Score · 400+ tokens</p>
+        </div>
+      )}
+      {q && <h2 className="text-lg font-semibold mb-4">Results for "{q}"</h2>}
+
+      {!q && (
+        <div className="mb-4 space-y-2">
+          {/* Tab strip — single row, horizontal scroll */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+              <div className="flex gap-1 bg-panel border border-line rounded-xl p-1 w-max min-w-full">
+                {TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all
+                      ${tab === t.id ? "bg-accent/15 text-accent" : "text-muted hover:text-white"}`}
+                  >
+                    <t.icon className="w-3 h-3 shrink-0" />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
-          <div className="ml-auto text-xs text-muted flex items-center gap-1.5">
-            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span className="w-2 h-2 rounded-full bg-up animate-pulse" />}
-            {loading ? "loading" : tab === "listed" ? `${listings.length} listed` : "live"}
+          </div>
+
+          {/* Interval + live indicator — only when relevant */}
+          <div className="flex items-center gap-2">
+            {!cur.noInterval && (
+              <div className="flex gap-0.5 bg-panel border border-line rounded-lg p-0.5">
+                {INTERVALS.map((iv) => (
+                  <button
+                    key={iv}
+                    onClick={() => setInterval(iv)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all
+                      ${interval === iv ? "bg-panel2 text-white" : "text-muted hover:text-white"}`}
+                  >
+                    {iv}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="ml-auto flex items-center gap-1.5 text-xs text-muted">
+              {loading
+                ? <Loader2 className="w-3 h-3 animate-spin" />
+                : <span className="w-1.5 h-1.5 rounded-full bg-up animate-pulse" />}
+              {loading ? "loading…" : tab === "listed" ? `${listings.length} listed` : "live"}
+            </div>
           </div>
         </div>
       )}
@@ -122,12 +145,19 @@ export default function Screener() {
               </thead>
               <tbody>
                 {loading && rows.length === 0 && Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={i} className="border-b border-line/50"><td colSpan={8} className="px-4 py-3"><div className="h-6 bg-panel2 rounded animate-pulse" /></td></tr>
+                  <tr key={i} className="border-b border-line/50">
+                    <td colSpan={8} className="px-4 py-3">
+                      <div className="h-5 bg-panel2 rounded animate-pulse" />
+                    </td>
+                  </tr>
                 ))}
                 {sorted.map((r, i) => (
-                  <tr key={r.mint + i} onClick={() => nav(`/token/${r.mint}`)}
-                    className="border-b border-line/50 hover:bg-panel2/60 cursor-pointer transition-colors">
-                    <td className="px-4 py-3 text-muted">{i + 1}</td>
+                  <tr
+                    key={r.mint + i}
+                    onClick={() => nav(`/token/${r.mint}`)}
+                    className="border-b border-line/50 hover:bg-panel2/60 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 text-muted text-xs">{i + 1}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-2.5">
                         <TokenLogo src={r.icon} sym={r.symbol} />
@@ -139,15 +169,29 @@ export default function Screener() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-2 py-3"><div className="font-medium">{fmtUsd(r.priceUsd)}</div><Change v={changeKeyEff(r)} className="text-xs" /></td>
+                    <td className="px-2 py-3">
+                      <div className="font-medium">{fmtUsd(r.priceUsd)}</div>
+                      <Change v={changeKeyEff(r)} className="text-xs" />
+                    </td>
                     <td className="px-2 py-3">{r.mcap != null ? fmtUsd(r.mcap, { compact: true }) : "—"}</td>
-                    <td className="px-2 py-3"><span className="inline-flex items-center gap-1"><Droplets className="w-3 h-3 text-muted" />{r.liquidity != null ? "$" + compact(r.liquidity) : "—"}</span></td>
+                    <td className="px-2 py-3">
+                      <span className="inline-flex items-center gap-1">
+                        <Droplets className="w-3 h-3 text-muted" />
+                        {r.liquidity != null ? "$" + compact(r.liquidity) : "—"}
+                      </span>
+                    </td>
                     <td className="px-2 py-3">{r.volume != null ? "$" + compact(r.volume) : "—"}</td>
                     <td className="px-2 py-3">{r.holderCount != null ? compact(r.holderCount) : "—"}</td>
-                    <td className="px-2 py-3">{r.organicScore != null ? <span className={`pill ${organicCls(r.organicScore)}`}>{Math.round(r.organicScore)}</span> : "—"}</td>
+                    <td className="px-2 py-3">
+                      {r.organicScore != null
+                        ? <span className={`pill ${organicCls(r.organicScore)}`}>{Math.round(r.organicScore)}</span>
+                        : "—"}
+                    </td>
                   </tr>
                 ))}
-                {!loading && sorted.length === 0 && <tr><td colSpan={8} className="px-4 py-10 text-center text-muted">No tokens found.</td></tr>}
+                {!loading && sorted.length === 0 && (
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-muted">No tokens found.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -170,12 +214,15 @@ function ListedView({ listings, loading }: { listings: Listing[]; loading: boole
       {listings.map((a) => {
         const inner = (
           <div className="card p-4 flex items-center gap-3 hover:border-accent/50 transition-colors h-full">
-            {a.logo_url ? <img src={a.logo_url} className="w-12 h-12 rounded-full object-cover border border-line shrink-0" />
+            {a.logo_url
+              ? <img src={a.logo_url} className="w-12 h-12 rounded-full object-cover border border-line shrink-0" />
               : <div className="w-12 h-12 rounded-full bg-panel2 grid place-items-center text-xs text-muted shrink-0">{(a.symbol || "?").slice(0, 3)}</div>}
             <div className="min-w-0 flex-1">
-              <div className="font-semibold truncate flex items-center gap-1.5">{a.project_name || a.symbol || "Project"}<Verified />
+              <div className="font-semibold truncate flex items-center gap-1.5">
+                {a.project_name || a.symbol || "Project"}<Verified />
                 <span className="pill bg-panel2 text-muted text-[10px] uppercase">{a.chain}</span>
-                {a.featured && <span className="pill bg-accent2/20 text-accent2 text-[10px]">AD</span>}</div>
+                {a.featured && <span className="pill bg-accent2/20 text-accent2 text-[10px]">AD</span>}
+              </div>
               <div className="text-xs text-muted truncate">{a.description || short(a.contract_address)}</div>
               {a.metadata?.mcap && <div className="text-xs text-muted mt-0.5">MC {fmtUsd(a.metadata.mcap, { compact: true })}</div>}
             </div>
@@ -190,10 +237,15 @@ function ListedView({ listings, loading }: { listings: Listing[]; loading: boole
 }
 
 function Th({ children, onClick, active }: { children: any; onClick?: () => void; active?: boolean }) {
-  return (<th className="text-left font-medium px-2 py-3 select-none">
-    <button onClick={onClick} className={`inline-flex items-center gap-1 hover:text-white ${active ? "text-white" : ""}`}>{children}<ArrowUpDown className="w-3 h-3 opacity-50" /></button>
-  </th>);
+  return (
+    <th className="text-left font-medium px-2 py-3 select-none">
+      <button onClick={onClick} className={`inline-flex items-center gap-1 hover:text-white ${active ? "text-white" : ""}`}>
+        {children}<ArrowUpDown className="w-3 h-3 opacity-40" />
+      </button>
+    </th>
+  );
 }
+
 function organicCls(s: number) {
   if (s >= 70) return "bg-up/15 text-up";
   if (s >= 40) return "bg-accent/15 text-accent";
