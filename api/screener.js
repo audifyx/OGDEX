@@ -150,13 +150,13 @@ export default async function handler(req, res) {
         .filter((c) => !c.complete)
         .map(normPump)
         .filter(Boolean)
-        .filter((r) => (r.volume ?? 0) >= 1000)
-        .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+        .filter((r) => (r.mcap ?? 0) >= 500)
+        .sort((a, b) => (b.bondingPct ?? 0) - (a.bondingPct ?? 0));
 
     } else if (type === "migrated") {
       // sort=last_trade_timestamp, filter complete=true
       const coins = await fetchPump("last_trade_timestamp", limit, (c) => c.complete === true);
-      rows = coins.map(normPump).filter(Boolean).filter((r) => (r.volume ?? 0) >= 1000).sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+      rows = coins.map(normPump).filter(Boolean).filter((r) => (r.mcap ?? 0) >= 500).sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0));
       // Fallback to DexScreener pumpswap if pump.fun returns nothing
       if (!rows.length) {
         rows = await fetchDexMigrated(limit);
