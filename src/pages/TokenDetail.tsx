@@ -172,7 +172,6 @@ export default function TokenDetail() {
       {tab === "predictive" && <PredictiveIntel d={d} />}
       {tab === "smartmoney" && <CapitalFlow d={d} />}
       {tab === "kolwhale" && <KolWhaleActivity d={d} dir={dir} />}
-      {tab === "kolwhale" && <KolWhaleActivity d={d} dir={dir} />}
       {tab === "holders" && <HoldersTable holders={holders} price={price} dir={dir} />}
       {tab === "trades" && <TradesTable trades={trades} mint={mint} onRefresh={() => getToken(mint).then(setD)} />}
       {tab === "forensics" && <Forensics d={d} meta={meta} safety={safety} />}
