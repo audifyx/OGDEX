@@ -122,3 +122,20 @@ export function toggleWatch(addr: string): boolean {
  localStorage.setItem(WL_KEY, JSON.stringify(list.slice(0, 50)));
  return list.includes(addr);
 }
+/* ---- Token Launcher ---- */
+export interface LaunchConfig {
+  ok: boolean; feeUsd: number; payWallet: string; solPrice: number | null;
+  usdcMint: string; usdtMint: string; solMint: string;
+}
+export interface LaunchedToken {
+  mint: string; symbol?: string | null; name?: string | null; icon?: string | null;
+  description?: string | null; creator_wallet?: string | null; created_at: string;
+  launch_tx?: string | null; priceUsd?: number | null; mcap?: number | null;
+  verified: boolean; boosted: boolean; source?: string;
+  links: { pumpfun: string; solscan: string; ogdex: string };
+}
+export const getLaunchConfig = () => j<LaunchConfig>(`/api/launch?config=1`);
+export const launchStep = (body: any) =>
+  postJson(`/api/launch`, body) as Promise<any>;
+export const getLaunches = (limit = 50) =>
+  j<{ ok: boolean; count: number; rows: LaunchedToken[]; error?: string }>(`/api/launches?limit=${limit}`);

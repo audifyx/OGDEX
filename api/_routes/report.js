@@ -1,4 +1,4 @@
-import { SUPA_FN, ANON } from "./_lib.js";
+import { SUPA_FN, ANON } from "../_lib.js";
 export default async function handler(req, res) {
   const url = new URL(req.url, "http://x");
   const mint = url.searchParams.get("mint") || "";

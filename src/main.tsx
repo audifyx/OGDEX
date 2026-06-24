@@ -13,6 +13,8 @@ import WalletIndex from "./pages/WalletIndex";
 import KolScanner from "./pages/KolScanner";
 import KolProfile from "./pages/KolProfile";
 import Admin from "./pages/Admin";
+import Launch from "./pages/Launch";
+import NewlyListed from "./pages/NewlyListed";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -24,6 +26,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="store" element={<Store />} />
           <Route path="submit" element={<Submit />} />
           <Route path="boost" element={<Boost />} />
+          <Route path="launch" element={<Launch />} />
+          <Route path="new" element={<NewlyListed />} />
           <Route path="wallet" element={<WalletIndex />} />
           <Route path="wallet/:address" element={<Wallet />} />
           <Route path="kol" element={<KolScanner />} />

@@ -1,4 +1,4 @@
-import { callFn, send, cache } from "./_lib.js";
+import { callFn, send, cache } from "../_lib.js";
 
 // Phantom-style wallet portfolio: SOL + SPL holdings with live USD values + metadata.
 // Sources: rpc-proxy (Alchemy) for balances, Jupiter price v3 for prices,

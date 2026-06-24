@@ -32,7 +32,7 @@ export default function Store() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* List Token */}
         <button
           onClick={() => nav("/submit")}
@@ -74,6 +74,38 @@ export default function Store() {
 
           <div className="mt-auto flex items-center gap-1 text-sm font-semibold text-accent group-hover:gap-2 transition-all">
             List now <ArrowRight className="w-4 h-4" />
+          </div>
+        </button>
+
+        {/* Launch Token */}
+        <button
+          onClick={() => nav("/launch")}
+          className="card group p-6 text-left hover:border-accent/50 transition-all hover:bg-accent/5 flex flex-col gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent/10 grid place-items-center shrink-0 group-hover:bg-accent/20 transition-colors">
+              <Rocket className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <div className="font-bold text-base">Launch a Token</div>
+              <div className="text-xs text-muted">Deploy on pump.fun</div>
+            </div>
+          </div>
+          <p className="text-sm text-muted/80 leading-relaxed">
+            Create a token on pump.fun straight from OG DEX. Pay a flat fee, deploy in seconds, and get added to the <span className="text-white">Newly Listed</span> section automatically. Unverified, no boost.
+          </p>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between rounded-lg bg-panel2/60 px-3 py-2">
+              <span className="text-muted/80">Flat launch fee</span>
+              <span className="font-bold text-accent">$5</span>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-panel2/60 px-3 py-2">
+              <span className="text-muted/80">Pay in</span>
+              <span className="font-semibold text-white text-xs">SOL / USDC / USDT</span>
+            </div>
+          </div>
+          <div className="mt-auto flex items-center gap-1 text-sm font-semibold text-accent group-hover:gap-2 transition-all">
+            Launch now <ArrowRight className="w-4 h-4" />
           </div>
         </button>
 

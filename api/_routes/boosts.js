@@ -1,4 +1,4 @@
-import { send, cache, dbSelect, dbInsert, dbUpdate, readBody, PAY_WALLET } from "./_lib.js";
+import { send, cache, dbSelect, dbInsert, dbUpdate, readBody, PAY_WALLET } from "../_lib.js";
 
 // Boost tiers
 const TIERS = [

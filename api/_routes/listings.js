@@ -1,4 +1,4 @@
-import { send, dbSelect, dbInsert, callFn, readBody, cache } from "./_lib.js";
+import { send, dbSelect, dbInsert, callFn, readBody, cache } from "../_lib.js";
 
 export default async function handler(req, res) {
   const url = new URL(req.url, "http://x");

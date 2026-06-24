@@ -1,5 +1,5 @@
-import { jup, callFn, send, cache } from "./_lib.js";
-import { normToken, num } from "./_normalize.js";
+import { jup, callFn, send, cache } from "../_lib.js";
+import { normToken, num } from "../_normalize.js";
 
 const GT_HDR = { Accept: "application/json;version=20230302" };
 const EVM_CHAIN_TO_GT = {

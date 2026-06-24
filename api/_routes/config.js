@@ -1,4 +1,4 @@
-import { send, PAY_WALLET, cache } from "./_lib.js";
+import { send, PAY_WALLET, cache } from "../_lib.js";
 export default async function handler(req, res) {
   cache(res, 300, 600);
   return send(res, 200, {
