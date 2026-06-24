@@ -62,6 +62,17 @@ export const getConfig = () => j(`/api/config`);
 export const getListings = (featuredOnly = false) =>
  j<{ rows: Listing[] }>(`/api/listings${featuredOnly ? "?featured=1" : ""}`);
 export const submitListing = (data: any) => postJson(`/api/listings`, data) as Promise<{ ok: boolean; listing?: Listing; error?: string }>;
+export interface SocialItem {
+ mint: string | null; symbol?: string | null; name?: string | null; icon?: string | null;
+ priceUsd?: number | null; mcap?: number | null; change1h?: number | null; change24h?: number | null;
+ volume?: number | null; liquidity?: number | null;
+ reason: string; reasons: string[];
+ source: "geckoterminal" | "coingecko" | "dexscreener" | string;
+ chain?: string; url?: string | null; cgId?: string | null; poolAddress?: string | null;
+}
+export const getTrendingSocial = () =>
+ j<{ count: number; items: SocialItem[]; sources?: string[]; error?: string }>("/api/trending-social");
+
 export const track = (type: string, extra: any = {}) => {
  try { navigator.sendBeacon?.("/api/track", JSON.stringify({ type, ...extra })); }
  catch { fetch("/api/track", { method: "POST", body: JSON.stringify({ type, ...extra }), keepalive: true }); }
