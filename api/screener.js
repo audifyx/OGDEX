@@ -403,7 +403,11 @@ export default async function handler(req, res) {
             mcap: null, volume: null, liquidity: null, change24h: null,
             kolBuys: t.kolBuys, _source: "kol",
           };
-        }).filter(Boolean));
+        }).filter(Boolean)
+        // ── Liveness filter: drop dead coins with no price or tiny mcap ────────
+        .filter(r => (r.priceUsd ?? 0) > 0 || (r.mcap ?? 0) >= 5000)
+        .filter(r => !((r.mcap ?? 0) > 0 && r.mcap < 5000))
+      );
       } catch (e) {
         // Fallback: verified tokens with high organic score
         const data = await jup(`/tokens/v2/toptraded/24h?limit=200`);
