@@ -2,6 +2,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Search, Zap, Rocket, Wallet, Star, ChevronDown, Coins, Radio } from "lucide-react";
 import { track, getWatchlist, short } from "../lib/api";
+import LiveStats from "./LiveStats";
 
 const isAddr = (v: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v.trim());
 
@@ -25,8 +26,6 @@ export default function Layout() {
     if (addr) nav(`/token/${v}`); else nav(`/?q=${encodeURIComponent(v)}`);
   };
 
-  return (
-    <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur">
         <div className="max-w-[1500px] mx-auto px-4 h-14 flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2 shrink-0">
@@ -34,9 +33,9 @@ export default function Layout() {
             <span className="font-bold tracking-tight text-lg hidden sm:block">OG<span className="text-accent">DEX</span></span>
           </Link>
           <nav className="hidden md:flex items-center gap-1 text-sm">
-            <Link to="/" className="btn text-muted hover:text-white inline-flex items-center gap-1.5"><Coins className="w-3.5 h-3.5" /> Coins</Link>
-            <Link to="/kol" className="btn text-muted hover:text-white inline-flex items-center gap-1.5"><Radio className="w-3.5 h-3.5" /> KOL Scanner</Link>
-            <Link to="/kol" className="btn text-muted hover:text-white inline-flex items-center gap-1.5"><Radio className="w-3.5 h-3.5" /> KOL Scanner</Link>
+            <Link to="/" className={`btn inline-flex items-center gap-1.5 ${loc.pathname === "/" ? "text-white" : "text-muted hover:text-white"}`}><Coins className="w-3.5 h-3.5" /> Discovery</Link>
+            <Link to="/wallet" className={`btn inline-flex items-center gap-1.5 ${loc.pathname.startsWith("/wallet") ? "text-white" : "text-muted hover:text-white"}`}><Wallet className="w-3.5 h-3.5" /> Portfolio</Link>
+            <Link to="/kol" className={`btn inline-flex items-center gap-1.5 ${loc.pathname.startsWith("/kol") ? "text-white" : "text-muted hover:text-white"}`}><Radio className="w-3.5 h-3.5" /> KOL</Link>
           </nav>
 
           <form onSubmit={go} className="flex-1 max-w-xl relative">
@@ -72,13 +71,22 @@ export default function Layout() {
           </Link>
         </div>
       </header>
+      <LiveStats />
       <main className="flex-1 max-w-[1500px] w-full mx-auto px-4 py-5"><Outlet /></main>
-      <footer className="border-t border-line py-4 text-center text-xs text-muted">
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <span className="inline-flex items-center gap-1"><Zap className="w-3 h-3 text-accent" /> Powered by OG Scan</span>
-          <Link to="/submit" className="hover:text-accent">List your token</Link>
-          <a href="https://t.me/ogscanofficial" target="_blank" rel="noreferrer" className="hover:text-accent">Telegram</a>
+      <footer className="border-t border-line py-6 text-center text-xs text-muted">
+        <div className="flex flex-wrap items-center justify-center gap-4 mb-2">
+          <span className="inline-flex items-center gap-1"><Zap className="w-3 h-3 text-accent" /> Advanced & Designed by <a href="https://x.com/ogscanbackup" target="_blank" rel="noreferrer" className="text-accent hover:underline font-semibold">@ogscanbackup</a></span>
         </div>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link to="/submit" className="hover:text-accent">List token (35% off first 25)</Link>
+          <span>•</span>
+          <a href="https://t.me/ogscanner" target="_blank" rel="noreferrer" className="hover:text-accent">Telegram @ogscanner</a>
+          <span>•</span>
+          <a href="https://t.me/ogupdates" target="_blank" rel="noreferrer" className="hover:text-accent">Updates @ogupdates</a>
+          <span>•</span>
+          <a href="https://x.com/ogscanbackup" target="_blank" rel="noreferrer" className="hover:text-accent">X @ogscanbackup</a>
+        </div>
+        <div className="mt-2 text-[10px] text-muted/60">OG DEX • Advanced token discovery • Portfolio analytics • Multi-chain intelligence</div>
       </footer>
     </div>
   );
