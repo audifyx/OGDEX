@@ -7,54 +7,116 @@ import Verified from "../components/Verified";
 import FeaturedBanner from "../components/FeaturedBanner";
 import {
   Flame, Sprout, Sparkles, ArrowUpDown, Loader2, Droplets, TrendingUp, Crown,
-  Star, Rocket, BadgeCheck, Moon, Zap, Unlink, Globe, ChevronDown, Activity
+  Star, Rocket, BadgeCheck, Moon, Zap, Unlink, Globe, ChevronRight, Activity,
+  CheckCircle2, Grid3x3
 } from "lucide-react";
 
-type Tab = "trending"|"runners"|"new"|"migrated"|"organic"|"moonshot"|"og"|"celebrity"|"unbonded"|"listed"|"multichain";
-const TABS: { id: Tab; label: string; icon: any; chainOnly?: boolean; noInterval?: boolean }[] = [
-  { id: "trending",    label: "Trending",    icon: Flame },
-  { id: "runners",     label: "Runners",     icon: TrendingUp,  noInterval: true },
-  { id: "new",         label: "New",         icon: Sparkles,    noInterval: true },
-  { id: "moonshot",    label: "Moonshot",    icon: Moon,        noInterval: true },
-  { id: "unbonded",    label: "Unbonded",    icon: Activity,    noInterval: true },
-  { id: "migrated",    label: "Migrated",    icon: Rocket,      noInterval: true },
-  { id: "organic",     label: "Organic",     icon: Sprout },
-  { id: "og",          label: "OG",          icon: Crown,       noInterval: true },
-  { id: "celebrity",   label: "Celebrity",   icon: Star,        noInterval: true },
-  { id: "listed",      label: "Listed",      icon: BadgeCheck,  noInterval: true },
-  { id: "multichain",  label: "Multi-chain", icon: Globe,       noInterval: true },
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type Category = "discover" | "pumpfun" | "curated" | "multichain";
+type Tab =
+  | "trending" | "runners" | "new" | "pumping"       // Discover
+  | "unbonded" | "migrated" | "moonshot"             // Pump.fun
+  | "og" | "celebrity" | "organic" | "listed"        // Curated
+  | "multichain";                                    // Multi-chain
+
+interface TabDef {
+  id: Tab;
+  label: string;
+  icon: any;
+  noInterval?: boolean;
+  desc?: string;
+}
+
+// ── Category & Tab Config ────────────────────────────────────────────────────
+
+const CATEGORIES: { id: Category; label: string; icon: any }[] = [
+  { id: "discover",   label: "Discover",    icon: Flame },
+  { id: "pumpfun",    label: "Pump.fun",    icon: Activity },
+  { id: "curated",    label: "Curated",     icon: Crown },
+  { id: "multichain", label: "Multi-chain", icon: Globe },
 ];
 
+const TABS_BY_CAT: Record<Category, TabDef[]> = {
+  discover: [
+    { id: "trending", label: "Trending",  icon: Flame,       desc: "Top traded right now" },
+    { id: "runners",  label: "Runners",   icon: TrendingUp,  desc: "Biggest 24h gainers", noInterval: true },
+    { id: "new",      label: "New",       icon: Sparkles,    desc: "Recently launched",   noInterval: true },
+    { id: "pumping",  label: "Pumping",   icon: Zap,         desc: "Spiking in last 1h",  noInterval: true },
+  ],
+  pumpfun: [
+    { id: "unbonded", label: "Unbonded",  icon: Activity,    desc: "Still bonding on pump.fun",  noInterval: true },
+    { id: "migrated", label: "Migrated",  icon: Rocket,      desc: "Graduated to Raydium",       noInterval: true },
+    { id: "moonshot", label: "Moonshot",  icon: Moon,        desc: "Launched via Moonshot",       noInterval: true },
+  ],
+  curated: [
+    { id: "og",        label: "OG",        icon: Crown,       desc: "Established verified tokens",   noInterval: true },
+    { id: "celebrity", label: "Celebrity", icon: Star,        desc: "Celebrity & influencer tokens", noInterval: true },
+    { id: "organic",   label: "Organic",   icon: Sprout,      desc: "Real organic growth" },
+    { id: "listed",    label: "Listed",    icon: BadgeCheck,  desc: "Community-listed tokens",       noInterval: true },
+  ],
+  multichain: [
+    { id: "multichain", label: "Trending", icon: TrendingUp,  desc: "Trending pools on this chain", noInterval: true },
+  ],
+};
+
+const DEFAULT_TAB: Record<Category, Tab> = {
+  discover: "trending", pumpfun: "unbonded", curated: "og", multichain: "multichain",
+};
+
 const INTERVALS = ["5m","1h","6h","24h"];
+
 const CHAINS = [
-  { id: "ethereum", label: "Ethereum", color: "text-blue-400" },
-  { id: "bsc",      label: "BNB Chain", color: "text-yellow-400" },
-  { id: "base",     label: "Base",     color: "text-blue-500" },
-  { id: "polygon",  label: "Polygon",  color: "text-purple-400" },
-  { id: "arbitrum", label: "Arbitrum", color: "text-cyan-400" },
-  { id: "avalanche",label: "Avax",     color: "text-red-400" },
-  { id: "sui",      label: "SUI",      color: "text-sky-400" },
-  { id: "ton",      label: "TON",      color: "text-blue-300" },
+  { id: "ethereum", label: "Ethereum",  color: "text-blue-400",   dot: "#60a5fa" },
+  { id: "bsc",      label: "BNB Chain", color: "text-yellow-400", dot: "#facc15" },
+  { id: "base",     label: "Base",      color: "text-blue-500",   dot: "#3b82f6" },
+  { id: "polygon",  label: "Polygon",   color: "text-purple-400", dot: "#c084fc" },
+  { id: "arbitrum", label: "Arbitrum",  color: "text-cyan-400",   dot: "#22d3ee" },
+  { id: "avalanche",label: "Avax",      color: "text-red-400",    dot: "#f87171" },
+  { id: "sui",      label: "SUI",       color: "text-sky-400",    dot: "#38bdf8" },
+  { id: "ton",      label: "TON",       color: "text-blue-300",   dot: "#93c5fd" },
 ];
 
 type SortKey = "mcap"|"liquidity"|"volume"|"change"|"holderCount"|"organicScore";
 
+// ── Component ────────────────────────────────────────────────────────────────
+
 export default function Screener() {
   const [params] = useSearchParams();
   const q = params.get("q") || "";
-  const [tab, setTab] = useState<Tab>("trending");
-  const [interval, setInterval] = useState("24h");
-  const [chain, setChain] = useState("ethereum");
-  const [rows, setRows] = useState<Row[]>([]);
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sort, setSort] = useState<SortKey>("volume");
-  const [desc, setDesc] = useState(true);
-  const nav = useNavigate();
-  const cur = TABS.find((t) => t.id === tab)!;
 
+  const [category, setCategory] = useState<Category>("discover");
+  const [tab, setTab]           = useState<Tab>("trending");
+  const [interval, setInterval] = useState("24h");
+  const [chain, setChain]       = useState("ethereum");
+  const [rows, setRows]         = useState<Row[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [sort, setSort]         = useState<SortKey>("volume");
+  const [desc, setDesc]         = useState(true);
+  const nav = useNavigate();
+
+  const subTabs = TABS_BY_CAT[category];
+  const cur = subTabs.find((t) => t.id === tab) || subTabs[0];
+  const isMultichain = category === "multichain";
+  const isUnbonded = tab === "unbonded";
+
+  // Switch category → switch to that category's default sub-tab
+  const switchCategory = (cat: Category) => {
+    setCategory(cat);
+    setTab(DEFAULT_TAB[cat]);
+    setRows([]);
+  };
+
+  const switchTab = (t: Tab) => {
+    setTab(t);
+    setRows([]);
+  };
+
+  // Fetch
   useEffect(() => {
-    let on = true; setLoading(true);
+    let on = true;
+    setLoading(true);
     const run = async () => {
       try {
         if (q) {
@@ -63,7 +125,7 @@ export default function Screener() {
         } else if (tab === "listed") {
           const d = await getListings();
           if (on) setListings(d.rows || []);
-        } else if (tab === "multichain") {
+        } else if (isMultichain) {
           const d = await getScreener("trending", interval, 100, chain);
           if (on) setRows(d.rows || []);
         } else {
@@ -73,18 +135,18 @@ export default function Screener() {
       } finally { if (on) setLoading(false); }
     };
     run();
-    const skip = q || tab === "listed" || cur.noInterval || tab === "multichain";
+    const skip = q || tab === "listed" || cur?.noInterval || isMultichain;
     const auto = skip ? null : window.setInterval(run, 25000);
     return () => { on = false; if (auto) clearInterval(auto); };
-  }, [tab, interval, q, chain]);
+  }, [tab, interval, q, chain, category]);
 
   const changeKeyEff = (r: Row) => {
-    if (cur.noInterval) return r.change24h;
+    if (cur?.noInterval) return r.change24h;
     return interval === "5m" ? r.change5m : interval === "1h" ? r.change1h : interval === "6h" ? r.change6h : r.change24h;
   };
 
   const sorted = useMemo(() => {
-    if (tab === "runners" || tab === "unbonded") return [...rows];
+    if (tab === "runners" || tab === "unbonded" || tab === "pumping") return [...rows];
     const arr = [...rows];
     arr.sort((a, b) => {
       const va = sort === "change" ? changeKeyEff(a) : (a as any)[sort];
@@ -95,85 +157,122 @@ export default function Screener() {
   }, [rows, sort, desc, interval, tab]);
 
   const setSortKey = (k: SortKey) => { if (k === sort) setDesc(!desc); else { setSort(k); setDesc(true); } };
-  const isUnbonded = tab === "unbonded";
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div>
       {!q && <FeaturedBanner />}
 
       {!q && (
-        <div className="mb-1">
-          <h1 className="text-xl font-bold tracking-tight">Token Screener</h1>
-          <p className="text-muted text-xs mt-0.5">Solana · Multi-chain · Moonshot · Pump.fun · Live</p>
+        <div className="mb-1 flex items-end justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Token Screener</h1>
+            <p className="text-muted text-xs mt-0.5">Solana · Multi-chain · Pump.fun · Live</p>
+          </div>
         </div>
       )}
       {q && <h2 className="text-lg font-semibold mb-4">Results for "{q}"</h2>}
 
       {!q && (
         <div className="mb-4 space-y-2 mt-3">
-          {/* Tab strip */}
-          <div className="overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <div className="flex gap-1 bg-panel border border-line rounded-xl p-1 w-max min-w-full">
-              {TABS.map((t) => (
+
+          {/* ── Category row ── */}
+          <div className="flex gap-1.5">
+            {CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              const active = cat.id === category;
+              return (
                 <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all
-                    ${tab === t.id ? "bg-accent/15 text-accent" : "text-muted hover:text-white"}`}
+                  key={cat.id}
+                  onClick={() => switchCategory(cat.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border
+                    ${active
+                      ? "bg-accent/15 text-accent border-accent/40"
+                      : "text-muted border-line hover:text-white hover:border-white/20 bg-panel"}`}
                 >
-                  <t.icon className="w-3 h-3 shrink-0" />
-                  {t.label}
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  {cat.label}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          {/* Sub-controls row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {!cur.noInterval && tab !== "multichain" && (
-              <div className="flex gap-0.5 bg-panel border border-line rounded-lg p-0.5">
+          {/* ── Sub-tab row ── */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {subTabs.map((t) => {
+              const Icon = t.icon;
+              const active = t.id === tab;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => switchTab(t.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all
+                    ${active ? "bg-panel2 text-white" : "text-muted hover:text-white"}`}
+                  title={t.desc}
+                >
+                  <Icon className="w-3 h-3 shrink-0" />
+                  {t.label}
+                </button>
+              );
+            })}
+
+            {/* Interval selector (when applicable) */}
+            {!cur?.noInterval && !isMultichain && (
+              <div className="flex gap-0.5 bg-panel border border-line rounded-lg p-0.5 ml-1">
                 {INTERVALS.map((iv) => (
                   <button key={iv} onClick={() => setInterval(iv)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all
+                    className={`px-2.5 py-0.5 rounded-md text-xs font-medium transition-all
                       ${interval === iv ? "bg-panel2 text-white" : "text-muted hover:text-white"}`}>
                     {iv}
                   </button>
                 ))}
               </div>
             )}
-            {tab === "multichain" && (
-              <div className="flex gap-1 flex-wrap">
+
+            {/* Chain selector for multi-chain */}
+            {isMultichain && (
+              <div className="flex gap-1 flex-wrap ml-1">
                 {CHAINS.map((c) => (
                   <button key={c.id} onClick={() => setChain(c.id)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all
                       ${chain === c.id
                         ? `border-accent/50 bg-accent/10 ${c.color}`
                         : "border-line text-muted hover:text-white hover:border-white/20"}`}>
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c.dot }} />
                     {c.label}
                   </button>
                 ))}
               </div>
             )}
+
+            {/* Count pill */}
             <div className="ml-auto flex items-center gap-1.5 text-xs text-muted">
               {loading
                 ? <Loader2 className="w-3 h-3 animate-spin" />
                 : <span className="w-1.5 h-1.5 rounded-full bg-up animate-pulse inline-block" />}
-              {loading ? "loading…"
-                : tab === "listed" ? `${listings.length} listed`
-                : tab === "multichain" ? `${rows.length} pools · ${CHAINS.find(c=>c.id===chain)?.label}`
-                : `${rows.length} tokens`}
+              <span>
+                {loading ? "loading…"
+                  : tab === "listed" ? `${listings.length} listed`
+                  : isMultichain ? `${rows.length} pools · ${CHAINS.find(c => c.id === chain)?.label}`
+                  : `${rows.length} tokens`}
+              </span>
             </div>
           </div>
+
+          {/* Sub-tab description hint */}
+          {cur?.desc && !loading && (
+            <p className="text-[11px] text-muted/60">{cur.desc}</p>
+          )}
         </div>
       )}
 
-      {/* Listed = card grid */}
+      {/* ── Listed = card grid ── */}
       {tab === "listed" && !q ? (
         <ListedView listings={listings} loading={loading} />
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ minWidth: isUnbonded ? 700 : 900 }}>
+            <table className="w-full text-sm" style={{ minWidth: isUnbonded ? 700 : 860 }}>
               <thead>
                 <tr className="text-muted text-xs border-b border-line">
                   <th className="text-left font-medium px-4 py-3 w-8">#</th>
@@ -181,19 +280,19 @@ export default function Screener() {
                   {isUnbonded ? (
                     <>
                       <th className="text-left font-medium px-2 py-3">Market Cap</th>
-                      <th className="text-left font-medium px-2 py-3 w-48">Bonding Progress</th>
+                      <th className="text-left font-medium px-2 py-3 w-44">Bonding</th>
                       <th className="text-left font-medium px-2 py-3">Holders</th>
                     </>
                   ) : (
                     <>
                       <Th onClick={() => setSortKey("change")} active={sort === "change"}>
-                        Price ({cur.noInterval ? "24h" : interval})
+                        Price ({cur?.noInterval ? "24h" : interval})
                       </Th>
                       <Th onClick={() => setSortKey("mcap")} active={sort === "mcap"}>MCap</Th>
                       <Th onClick={() => setSortKey("liquidity")} active={sort === "liquidity"}>Liq</Th>
                       <Th onClick={() => setSortKey("volume")} active={sort === "volume"}>Vol</Th>
                       <Th onClick={() => setSortKey("holderCount")} active={sort === "holderCount"}>Holders</Th>
-                      {tab !== "multichain" && (
+                      {!isMultichain && (
                         <Th onClick={() => setSortKey("organicScore")} active={sort === "organicScore"}>Organic</Th>
                       )}
                     </>
@@ -203,68 +302,83 @@ export default function Screener() {
               <tbody>
                 {loading && rows.length === 0 && Array.from({ length: 12 }).map((_, i) => (
                   <tr key={i} className="border-b border-line/50">
-                    <td colSpan={8} className="px-4 py-3">
+                    <td colSpan={isUnbonded ? 5 : (isMultichain ? 6 : 7)} className="px-4 py-3">
                       <div className="h-5 bg-panel2 rounded animate-pulse" />
                     </td>
                   </tr>
                 ))}
-                {sorted.map((r: any, i) => (
-                  <tr key={r.mint + i}
-                    onClick={() => r.chain && r.chain !== "solana" ? null : nav(`/token/${r.mint}`)}
-                    className={`border-b border-line/50 transition-colors
-                      ${r.chain && r.chain !== "solana" ? "cursor-default" : "hover:bg-panel2/60 cursor-pointer"}`}>
-                    <td className="px-4 py-3 text-muted text-xs">{i + 1}</td>
-                    <td className="px-2 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <TokenLogo src={r.icon} sym={r.symbol} />
-                        <div className="min-w-0">
-                          <div className="font-semibold truncate max-w-[160px] flex items-center gap-1.5">
-                            {r.symbol || short(r.mint)}
-                            {r.isVerified && <Verified />}
-                            {r.chain && r.chain !== "solana" && (
-                              <span className="pill bg-panel2 text-muted text-[9px] uppercase !px-1.5 !py-0">{r.chain}</span>
-                            )}
+                {sorted.map((r: any, i) => {
+                  const isExternal = r.chain && r.chain !== "solana";
+                  return (
+                    <tr
+                      key={(r.mint || r.poolAddress || i) + i}
+                      onClick={() => isExternal ? null : nav(`/token/${r.mint}`)}
+                      className={`border-b border-line/50 transition-colors
+                        ${isExternal ? "cursor-default" : "hover:bg-panel2/60 cursor-pointer"}`}
+                    >
+                      <td className="px-4 py-3 text-muted text-xs">{i + 1}</td>
+                      <td className="px-2 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <TokenLogo src={r.icon} sym={r.symbol} />
+                          <div className="min-w-0">
+                            <div className="font-semibold truncate max-w-[150px] flex items-center gap-1.5">
+                              {r.symbol || short(r.mint)}
+                              {r.isVerified && <Verified />}
+                              {isMultichain && r.chain && (
+                                <span className="pill bg-panel2 text-muted text-[9px] uppercase !px-1.5 !py-0">
+                                  {r.chain.replace("_pos","").replace("-network","")}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-muted text-xs truncate max-w-[150px]">
+                              {r.name !== r.symbol ? r.name : null || short(r.mint)}
+                            </div>
                           </div>
-                          <div className="text-muted text-xs truncate max-w-[160px]">{r.name || short(r.mint)}</div>
                         </div>
+                      </td>
+
+                      {isUnbonded ? (
+                        <>
+                          <td className="px-2 py-3">{r.mcap != null ? fmtUsd(r.mcap, { compact: true }) : "—"}</td>
+                          <td className="px-2 py-3"><BondingBar pct={r.bondingPct} /></td>
+                          <td className="px-2 py-3">{r.holderCount != null ? compact(r.holderCount) : "—"}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-2 py-3">
+                            <div className="font-medium">{r.priceUsd != null ? fmtUsd(r.priceUsd) : "—"}</div>
+                            <Change v={changeKeyEff(r)} className="text-xs" />
+                          </td>
+                          <td className="px-2 py-3">{r.mcap != null ? fmtUsd(r.mcap, { compact: true }) : "—"}</td>
+                          <td className="px-2 py-3">
+                            <span className="inline-flex items-center gap-1">
+                              <Droplets className="w-3 h-3 text-muted" />
+                              {r.liquidity != null ? "$" + compact(r.liquidity) : "—"}
+                            </span>
+                          </td>
+                          <td className="px-2 py-3">{r.volume != null ? "$" + compact(r.volume) : "—"}</td>
+                          <td className="px-2 py-3">{r.holderCount != null ? compact(r.holderCount) : "—"}</td>
+                          {!isMultichain && (
+                            <td className="px-2 py-3">
+                              {r.organicScore != null
+                                ? <span className={`pill ${organicCls(r.organicScore)}`}>{Math.round(r.organicScore)}</span>
+                                : "—"}
+                            </td>
+                          )}
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+                {!loading && sorted.length === 0 && (
+                  <tr>
+                    <td colSpan={isUnbonded ? 5 : (isMultichain ? 6 : 7)} className="px-4 py-12 text-center text-muted">
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-2xl opacity-30">🔍</span>
+                        <span>No tokens found.</span>
                       </div>
                     </td>
-                    {isUnbonded ? (
-                      <>
-                        <td className="px-2 py-3">{r.mcap != null ? fmtUsd(r.mcap, { compact: true }) : "—"}</td>
-                        <td className="px-2 py-3">
-                          <BondingBar pct={r.bondingPct} />
-                        </td>
-                        <td className="px-2 py-3">{r.holderCount != null ? compact(r.holderCount) : "—"}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-2 py-3">
-                          <div className="font-medium">{fmtUsd(r.priceUsd)}</div>
-                          <Change v={changeKeyEff(r)} className="text-xs" />
-                        </td>
-                        <td className="px-2 py-3">{r.mcap != null ? fmtUsd(r.mcap, { compact: true }) : "—"}</td>
-                        <td className="px-2 py-3">
-                          <span className="inline-flex items-center gap-1">
-                            <Droplets className="w-3 h-3 text-muted" />
-                            {r.liquidity != null ? "$" + compact(r.liquidity) : "—"}
-                          </span>
-                        </td>
-                        <td className="px-2 py-3">{r.volume != null ? "$" + compact(r.volume) : "—"}</td>
-                        <td className="px-2 py-3">{r.holderCount != null ? compact(r.holderCount) : "—"}</td>
-                        {tab !== "multichain" && (
-                          <td className="px-2 py-3">
-                            {r.organicScore != null
-                              ? <span className={`pill ${organicCls(r.organicScore)}`}>{Math.round(r.organicScore)}</span>
-                              : "—"}
-                          </td>
-                        )}
-                      </>
-                    )}
                   </tr>
-                ))}
-                {!loading && sorted.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-10 text-center text-muted">No tokens found.</td></tr>
                 )}
               </tbody>
             </table>
@@ -275,15 +389,17 @@ export default function Screener() {
   );
 }
 
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function BondingBar({ pct }: { pct: number | null | undefined }) {
-  const p = pct ?? 0;
+  const p = Math.min(100, Math.max(0, pct ?? 0));
   const cls = p >= 80 ? "bg-up" : p >= 50 ? "bg-accent" : p >= 25 ? "bg-yellow-500" : "bg-panel2";
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-panel2 rounded-full overflow-hidden max-w-[100px]">
+      <div className="flex-1 h-1.5 bg-panel2 rounded-full overflow-hidden max-w-[90px]">
         <div className={`h-full rounded-full transition-all ${cls}`} style={{ width: `${p}%` }} />
       </div>
-      <span className="text-xs text-muted w-8 text-right">{p}%</span>
+      <span className="text-xs text-muted w-8 text-right tabular-nums">{p}%</span>
     </div>
   );
 }
@@ -294,18 +410,20 @@ function ListedView({ listings, loading }: { listings: Listing[]; loading: boole
   );
   if (!listings.length) return (
     <div className="card p-10 text-center">
-      <p className="text-muted">No community listings yet.</p>
-      <Link to="/submit" className="btn bg-accent text-black font-semibold mt-3 inline-flex">List your token →</Link>
+      <p className="text-muted mb-3">No community listings yet.</p>
+      <Link to="/submit" className="btn bg-accent text-black font-semibold inline-flex">List your token →</Link>
     </div>
   );
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
+    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))" }}>
       {listings.map((a) => {
         const inner = (
           <div className="card p-4 flex items-center gap-3 hover:border-accent/50 transition-colors h-full">
             {a.logo_url
               ? <img src={a.logo_url} className="w-12 h-12 rounded-full object-cover border border-line shrink-0" />
-              : <div className="w-12 h-12 rounded-full bg-panel2 grid place-items-center text-xs text-muted shrink-0">{(a.symbol || "?").slice(0, 3)}</div>}
+              : <div className="w-12 h-12 rounded-full bg-panel2 grid place-items-center text-xs text-muted shrink-0">
+                  {(a.symbol || "?").slice(0, 3)}
+                </div>}
             <div className="min-w-0 flex-1">
               <div className="font-semibold truncate flex items-center gap-1.5">
                 {a.project_name || a.symbol || "Project"}
@@ -330,7 +448,7 @@ function ListedView({ listings, loading }: { listings: Listing[]; loading: boole
 function Th({ children, onClick, active }: { children: any; onClick?: () => void; active?: boolean }) {
   return (
     <th className="text-left font-medium px-2 py-3 select-none">
-      <button onClick={onClick} className={`inline-flex items-center gap-1 hover:text-white ${active ? "text-white" : ""}`}>
+      <button onClick={onClick} className={`inline-flex items-center gap-1 hover:text-white transition-colors ${active ? "text-white" : ""}`}>
         {children}<ArrowUpDown className="w-3 h-3 opacity-40" />
       </button>
     </th>
