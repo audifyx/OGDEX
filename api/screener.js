@@ -231,17 +231,61 @@ export default async function handler(req, res) {
 
     // ── Pump.fun: New Pairs (newest coins, no symbol spam, must have activity) ──
     } else if (type === "newpairs") {
+      // ── Fetch pump.fun newest (created in last 24h, both bonded + unbonded) ──
+      const cutoff24h = Date.now() - 86_400_000;
       const coins = await fetchPump("created_timestamp", 200);
-      // 1. Filter: unbonded only, mcap >= $1000 (someone actually bought in)
-      // 2. Dedup by mint (same address)
-      // 3. Dedup by symbol (pump.fun spam — WENDYS×18 different mints → keep highest mcap)
-      // 4. Sort by newest first
-      const raw = coins
-        .filter(c => !c.complete && (c.usd_market_cap || 0) >= 1000)
-        .map(normPump)
-        .filter(Boolean)
-        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      rows = dedupBySymbol(dedup(raw)).slice(0, limit);
+      const todayCoins = coins.filter(c =>
+        (c.created_timestamp ?? 0) >= cutoff24h &&
+        (c.usd_market_cap || 0) >= 10_000
+      );
+      const normCoins = todayCoins.map(normPump).filter(Boolean);
+
+      // ── Batch-enrich with DexScreener for real volume.h24 ─────────────────
+      // DexScreener accepts up to 30 addresses per call
+      const CHUNK = 30;
+      const dexMap = {};
+      for (let i = 0; i < normCoins.length; i += CHUNK) {
+        const chunk  = normCoins.slice(i, i + CHUNK);
+        const addrs  = chunk.map(c => c.mint).join(",");
+        try {
+          const d = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${addrs}`, {
+            headers: { Accept: "application/json" },
+          }).then(r => r.ok ? r.json() : null).catch(() => null);
+          for (const p of (d?.pairs || [])) {
+            const addr = p.baseToken?.address;
+            if (!addr) continue;
+            const key = addr.toLowerCase();
+            const vol = p.volume?.h24 ?? 0;
+            if (!dexMap[key] || vol > (dexMap[key].volume ?? 0)) {
+              dexMap[key] = {
+                volume:   vol,
+                priceUsd: p.priceUsd ? parseFloat(p.priceUsd) : null,
+                mcap:     p.marketCap ? parseFloat(p.marketCap) : null,
+                change24h: p.priceChange?.h24 ? parseFloat(p.priceChange.h24) : null,
+                liquidity: p.liquidity?.usd ?? null,
+              };
+            }
+          }
+        } catch {}
+      }
+
+      // Merge DexScreener data, then filter: volume ≥ $10k
+      const enriched = normCoins.map(c => {
+        const dx = dexMap[c.mint.toLowerCase()];
+        if (!dx) return c;
+        return {
+          ...c,
+          volume:   dx.volume   ?? c.volume,
+          priceUsd: dx.priceUsd ?? c.priceUsd,
+          mcap:     dx.mcap     ?? c.mcap,
+          change24h: dx.change24h ?? c.change24h,
+          liquidity: dx.liquidity ?? c.liquidity,
+        };
+      }).filter(c => (c.volume ?? 0) >= 10_000 && (c.mcap ?? 0) >= 10_000);
+
+      rows = dedupBySymbol(dedup(enriched))
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, limit);
 
     // ── Moonshot (Jupiter moonshot-verified tag) ──────────────────────────────
     } else if (type === "moonshot") {
