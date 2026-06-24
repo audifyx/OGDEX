@@ -7,6 +7,7 @@ import Screener from "./pages/Screener";
 import TokenDetail from "./pages/TokenDetail";
 import Submit from "./pages/Submit";
 import Wallet from "./pages/Wallet";
+import WalletIndex from "./pages/WalletIndex";
 import KolScanner from "./pages/KolScanner";
 import KolProfile from "./pages/KolProfile";
 import Admin from "./pages/Admin";
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<Screener />} />
           <Route path="/token/:mint" element={<TokenDetail />} />
           <Route path="/submit" element={<Submit />} />
+          <Route path="/wallet" element={<WalletIndex />} />
           <Route path="/wallet/:address" element={<Wallet />} />
           <Route path="/kol" element={<KolScanner />} />
           <Route path="/kol/:address" element={<KolProfile />} />
