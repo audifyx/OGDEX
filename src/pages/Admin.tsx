@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { adminGet, adminAction, fmtNum, short } from "../lib/api";
-import { Lock, Eye, Users, CheckCircle2, XCircle, Star, Trash2, Loader2, BarChart3, Clock, DollarSign, BadgeCheck, Rocket } from "lucide-react";
+import { Lock, Eye, Users, CheckCircle2, XCircle, Star, Trash2, Loader2, BarChart3, Clock, DollarSign, BadgeCheck, Rocket, Sparkles } from "lucide-react";
 
 const LS_KEY = "ogdex_admin_pass";
 
@@ -11,6 +11,13 @@ export default function Admin() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [featCa, setFeatCa] = useState("");
+  const [featSym, setFeatSym] = useState("");
+  const [featName, setFeatName] = useState("");
+  const [featIcon, setFeatIcon] = useState("");
+  const [featDesc, setFeatDesc] = useState("");
+  const [featLoading, setFeatLoading] = useState(false);
+  const [featMsg, setFeatMsg] = useState("");
 
   const load = async (p: string) => {
     setLoading(true); setErr("");
@@ -37,6 +44,22 @@ export default function Admin() {
       </form>
     </div>
   );
+
+  const addFeatured = async () => {
+    if (!featCa.trim()) { setFeatMsg("Contract address is required."); return; }
+    setFeatLoading(true); setFeatMsg("");
+    try {
+      const r = await adminAction(pass, "add_featured", "noop", {
+        mint: featCa.trim(), symbol: featSym.trim(), project_name: featName.trim(),
+        logo_url: featIcon.trim(), description: featDesc.trim(), chain: "solana",
+      });
+      if (r && r.ok === false) throw new Error(r.error || "Failed");
+      setFeatMsg("Added to featured!");
+      setFeatCa(""); setFeatSym(""); setFeatName(""); setFeatIcon(""); setFeatDesc("");
+      setTimeout(() => load(pass), 800);
+    } catch (e: any) { setFeatMsg("Error: " + (e.message || "unknown")); }
+    finally { setFeatLoading(false); }
+  };
 
   const s = data?.stats || {};
   const maxDay = Math.max(1, ...(s.series || []).map((x: any) => x.count));
@@ -96,6 +119,35 @@ export default function Admin() {
         <Breakdown title="Events by type" data={s.byType} />
         <PathList title="Top pages" rows={s.topPaths} />
       </div>
+
+      {/* Quick-Add Featured */}
+      <Section title="Quick-Add to Featured Daily">
+        <div className="space-y-3">
+          <p className="text-xs text-muted">Paste a CA to instantly add a token to the Featured Daily section — no listing form needed.</p>
+          <div className="grid sm:grid-cols-2 gap-2">
+            <input value={featCa} onChange={e => setFeatCa(e.target.value)}
+              placeholder="Token CA / mint address *" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40 font-mono col-span-2 sm:col-span-2" />
+            <input value={featSym} onChange={e => setFeatSym(e.target.value)}
+              placeholder="Symbol (e.g. PEPE)" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40" />
+            <input value={featName} onChange={e => setFeatName(e.target.value)}
+              placeholder="Project name" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40" />
+            <input value={featIcon} onChange={e => setFeatIcon(e.target.value)}
+              placeholder="Logo URL (optional)" className="card p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40 col-span-2 sm:col-span-2" />
+          </div>
+          <input value={featDesc} onChange={e => setFeatDesc(e.target.value)}
+            placeholder="Short description (optional)" className="card w-full p-2.5 text-sm bg-transparent outline-none placeholder:text-muted/40" />
+          <div className="flex items-center gap-3">
+            <button onClick={addFeatured} disabled={featLoading || !featCa.trim()}
+              className="btn bg-accent text-black font-bold inline-flex items-center gap-1.5 disabled:opacity-50">
+              {featLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Add to Featured
+            </button>
+            {featMsg && (
+              <span className={featMsg.startsWith("Added") ? "text-up text-sm" : "text-down text-sm"}>{featMsg}</span>
+            )}
+          </div>
+        </div>
+      </Section>
 
       <Section title={`Pending listings (${data?.pending?.length || 0})`}>
         {(data?.pending || []).map((l: any) => (
