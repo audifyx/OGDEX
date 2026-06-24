@@ -1,4 +1,4 @@
-import { send, dbSelect, dbUpdate, dbDelete, dbRpcCount, readBody, ADMIN_PASS } from "./_lib.js";
+import { send, dbSelect, dbUpdate, dbDelete, dbInsert, readBody, ADMIN_PASS } from "./_lib.js";
 
 function auth(pass) { return pass && String(pass) === String(ADMIN_PASS); }
 
@@ -62,7 +62,7 @@ async function action(req, res) {
     const b = await readBody(req);
     if (!auth(b.pass)) return send(res, 401, { ok: false, error: "unauthorized" });
     const id = b.id;
-    if (!id && b.action !== "ping") return send(res, 400, { ok: false, error: "id required" });
+    if (!id && !(["ping", "add_featured"].includes(b.action))) return send(res, 400, { ok: false, error: "id required" });
     const q = `id=eq.${id}`;
     switch (b.action) {
       case "ping": return send(res, 200, { ok: true });
@@ -72,6 +72,27 @@ async function action(req, res) {
       case "unfeature": await dbUpdate("ogdex_listings", q, { featured: false, featured_rank: 0, updated_at: new Date().toISOString() }); break;
       case "update": await dbUpdate("ogdex_listings", q, { ...sanitize(b.patch), updated_at: new Date().toISOString() }); break;
       case "delete": await dbDelete("ogdex_listings", q); break;
+      case "add_featured": {
+        const mint = String(b.mint || "").trim();
+        if (!mint) return send(res, 400, { ok: false, error: "mint required" });
+        const row = {
+          contract_address: mint,
+          chain: String(b.chain || "solana"),
+          project_name: String(b.project_name || b.name || b.symbol || ""),
+          symbol: String(b.symbol || ""),
+          logo_url: String(b.logo_url || b.icon || "") || null,
+          description: String(b.description || "Admin featured token"),
+          status: "approved",
+          featured: true,
+          featured_rank: Number(b.featured_rank) || 1,
+          tier: "standard",
+          approved_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        await dbInsert("ogdex_listings", row);
+        break;
+      }
       default: return send(res, 400, { ok: false, error: "unknown action" });
     }
     return send(res, 200, { ok: true });
