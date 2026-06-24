@@ -26,6 +26,8 @@ export default function Layout() {
     if (addr) nav(`/token/${v}`); else nav(`/?q=${encodeURIComponent(v)}`);
   };
 
+  return (
+    <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur">
         <div className="max-w-[1500px] mx-auto px-4 h-14 flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2 shrink-0">
