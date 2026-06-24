@@ -71,7 +71,7 @@ export interface SocialItem {
  chain?: string; url?: string | null; cgId?: string | null; poolAddress?: string | null;
 }
 export const getTrendingSocial = () =>
- j<{ count: number; items: SocialItem[]; sources?: string[]; error?: string }>("/api/trending-social");
+ j<{ count: number; items: SocialItem[]; sources?: string[]; error?: string }>("/api/screener?type=social");
 
 export const track = (type: string, extra: any = {}) => {
  try { navigator.sendBeacon?.("/api/track", JSON.stringify({ type, ...extra })); }
