@@ -1,5 +1,5 @@
-import { callFn, send } from "./_lib.js";
-import { normToken, num } from "./_normalize.js";
+import { callFn, send } from "../_lib.js";
+import { normToken, num } from "../_normalize.js";
 
 export default async function handler(req, res) {
   const url = new URL(req.url, "http://x");

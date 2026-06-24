@@ -1,4 +1,4 @@
-import { send, dbInsert, readBody } from "./_lib.js";
+import { send, dbInsert, readBody } from "../_lib.js";
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { ok: false });
   try {

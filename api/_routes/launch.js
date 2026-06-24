@@ -1,4 +1,4 @@
-import { send, callFn, dbInsert, dbSelect, readBody, PAY_WALLET } from "./_lib.js";
+import { send, callFn, dbInsert, dbSelect, readBody, PAY_WALLET } from "../_lib.js";
 
 /**
  * OG DEX Token Launcher backend.

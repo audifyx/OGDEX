@@ -1,6 +1,6 @@
-import { jup, callFn, send, cache, dbSelect } from "./_lib.js";
-import { normToken, num } from "./_normalize.js";
-import { CELEB_MINTS, fetchMints } from "./_curated.js";
+import { jup, callFn, send, cache, dbSelect } from "../_lib.js";
+import { normToken, num } from "../_normalize.js";
+import { CELEB_MINTS, fetchMints } from "../_curated.js";
 
 const CHAINS = ["solana","ethereum","bsc","base","polygon","arbitrum","avalanche","sui","ton"];
 const GT_HDR = { Accept: "application/json;version=20230302" };

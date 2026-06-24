@@ -1,4 +1,4 @@
-import { send, dbSelect, dbUpdate, dbDelete, dbInsert, readBody, ADMIN_PASS } from "./_lib.js";
+import { send, dbSelect, dbUpdate, dbDelete, dbInsert, readBody, ADMIN_PASS } from "../_lib.js";
 
 function auth(pass) { return pass && String(pass) === String(ADMIN_PASS); }
 

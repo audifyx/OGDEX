@@ -1,12 +1,12 @@
-import { callFn, send, cache, dbSelect, dbInsert, dbUpdate, readBody, ADMIN_PASS } from "./_lib.js";
-import { parseSwap } from "./_swap.js";
-import { enrichTokens } from "./_market.js";
-import { computePnl } from "./_pnl.js";
+import { callFn, send, cache, dbSelect, dbInsert, dbUpdate, readBody, ADMIN_PASS } from "../_lib.js";
+import { parseSwap } from "../_swap.js";
+import { enrichTokens } from "../_market.js";
+import { computePnl } from "../_pnl.js";
 import { readFileSync } from "fs";
 
 const SOL = "So11111111111111111111111111111111111111112";
 let SEED = { kols: [] };
-try { SEED = JSON.parse(readFileSync(new URL("./_kols.json", import.meta.url), "utf8")); } catch {}
+try { SEED = JSON.parse(readFileSync(new URL("../_kols.json", import.meta.url), "utf8")); } catch {}
 
 const pub = (p) => ({
   kolId: p.kol_id || p.id || null, name: p.name, twitter: p.x_handle || null,

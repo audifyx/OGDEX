@@ -1,4 +1,4 @@
-import { send, cache } from "./_lib.js";
+import { send, cache } from "../_lib.js";
 
 // OHLCV candles for the token's top liquidity pool, via GeckoTerminal (free, no key).
 // Used by the price chart on the coin page. Returns ascending candles for lightweight-charts.
