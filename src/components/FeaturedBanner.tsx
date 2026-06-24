@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { fmtUsd, compact, short } from "../lib/api";
-import { Zap, Star, ChevronRight, TrendingUp } from "lucide-react";
+import { fmtUsd, short } from "../lib/api";
+import { Zap, Star, ChevronRight } from "lucide-react";
 import TokenLogo from "./TokenLogo";
 
 interface Boost {
@@ -44,7 +44,21 @@ export default function FeaturedBanner() {
   const hasFeatured = featured.length > 0;
   if (!hasBoosts && !hasFeatured) return null;
 
-  const hero = featured[0];
+  // Cap display at 4 featured tokens
+  const slots = featured.slice(0, 4);
+  const count = slots.length;
+
+  // Grid cols: 1→1, 2→2, 3→3, 4→4 (always fills row evenly)
+  const gridCols =
+    count === 1 ? "grid-cols-1" :
+    count === 2 ? "grid-cols-2" :
+    count === 3 ? "grid-cols-3" :
+                  "grid-cols-4";
+
+  const handleToken = (f: Listing) => {
+    if (f.chain === "solana") nav(`/token/${f.contract_address}`);
+    else window.open(f.links?.website || `https://dexscreener.com/search?q=${f.contract_address}`, "_blank");
+  };
 
   return (
     <div className="mb-5 space-y-3">
@@ -66,7 +80,7 @@ export default function FeaturedBanner() {
             {boosts.map((b, i) => (
               <button
                 key={b.id}
-                onClick={() => !b.chain || b.chain === "solana" ? nav(`/token/${b.mint}`) : undefined}
+                onClick={() => (!b.chain || b.chain === "solana") ? nav(`/token/${b.mint}`) : undefined}
                 style={{ scrollSnapAlign: "center" }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 transition-all cursor-pointer
                   ${i === activeIdx
@@ -84,7 +98,7 @@ export default function FeaturedBanner() {
         </div>
       )}
 
-      {/* ── Featured Daily Section ─────────────────────────────────── */}
+      {/* ── Featured Daily — square grid ───────────────────────────── */}
       {hasFeatured && (
         <div className="card border border-yellow-500/15 overflow-hidden">
           <div className="flex items-center gap-2 px-4 pt-3 pb-2">
@@ -95,75 +109,50 @@ export default function FeaturedBanner() {
             </Link>
           </div>
 
-          {/* Hero (first featured) */}
-          {hero && (
-            <div
-              className="mx-3 mb-2 relative overflow-hidden rounded-xl cursor-pointer group"
-              onClick={() =>
-                hero.chain === "solana"
-                  ? nav(`/token/${hero.contract_address}`)
-                  : window.open(hero.links?.website || `https://dexscreener.com/search?q=${hero.contract_address}`, "_blank")
-              }
-              style={{
-                background: hero.banner_url
-                  ? `linear-gradient(to right, rgba(0,0,0,0.88) 45%, rgba(0,0,0,0.3)), url(${hero.banner_url}) center/cover`
-                  : "var(--color-panel2)",
-              }}
-            >
-              <div className="flex items-center gap-3 p-3">
-                <div className="shrink-0">
-                  {hero.logo_url
-                    ? <img src={hero.logo_url} className="w-12 h-12 rounded-full border border-white/20 object-cover" />
-                    : <div className="w-12 h-12 rounded-full bg-panel grid place-items-center text-sm font-bold text-muted">
-                        {(hero.symbol || "?").slice(0, 2)}
-                      </div>}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-bold text-white flex items-center gap-1.5 flex-wrap">
-                    {hero.project_name || hero.symbol}
-                    <span className="pill bg-panel2/60 text-muted text-[9px] uppercase">{hero.chain}</span>
-                    <span className="pill bg-yellow-500/20 text-yellow-400 text-[9px]">★ Featured</span>
-                  </div>
-                  <p className="text-xs text-muted/80 mt-0.5 line-clamp-1">{hero.description || "Community featured token"}</p>
-                  {hero.metadata?.mcap && (
-                    <div className="text-xs text-muted/60 mt-0.5">
-                      MC {fmtUsd(hero.metadata.mcap, { compact: true })}
-                      {hero.metadata.priceUsd && <span className="ml-1.5">{fmtUsd(hero.metadata.priceUsd)}</span>}
-                    </div>
-                  )}
-                </div>
-                <TrendingUp className="w-4 h-4 text-yellow-400/60 shrink-0 group-hover:text-yellow-400 transition-colors" />
-              </div>
-            </div>
-          )}
-
-          {/* Rest of featured list */}
-          {featured.length > 1 && (
-            <div className="px-3 pb-3 grid gap-1.5"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-              {featured.slice(1).map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() =>
-                    f.chain === "solana"
-                      ? nav(`/token/${f.contract_address}`)
-                      : window.open(f.links?.website || `https://dexscreener.com/search?q=${f.contract_address}`, "_blank")
-                  }
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-panel2/80 transition-colors text-left"
-                >
+          {/* Square grid — 1 full width, 2–4 side by side */}
+          <div className={`grid ${gridCols} gap-2 px-3 pb-3`}>
+            {slots.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => handleToken(f)}
+                className="group relative aspect-square rounded-xl overflow-hidden border border-line hover:border-yellow-500/40 transition-all hover:scale-[1.02]"
+                style={{
+                  background: f.banner_url
+                    ? `linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.80) 100%), url(${f.banner_url}) center/cover`
+                    : "var(--color-panel2)",
+                }}
+              >
+                {/* Logo */}
+                <div className="absolute top-2.5 left-2.5">
                   {f.logo_url
-                    ? <img src={f.logo_url} className="w-7 h-7 rounded-full border border-line object-cover shrink-0" />
-                    : <div className="w-7 h-7 rounded-full bg-panel2 grid place-items-center text-[10px] text-muted shrink-0">
+                    ? <img src={f.logo_url} className="w-9 h-9 rounded-full border-2 border-white/20 object-cover shadow-lg" />
+                    : <div className="w-9 h-9 rounded-full bg-panel2 border-2 border-line grid place-items-center text-xs font-bold text-muted">
                         {(f.symbol || "?").slice(0, 2)}
                       </div>}
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs truncate">{f.symbol || f.project_name}</div>
-                    <div className="text-[10px] text-muted truncate">{f.project_name || short(f.contract_address)}</div>
+                </div>
+
+                {/* Featured star badge */}
+                <div className="absolute top-2.5 right-2.5">
+                  <span className="pill bg-yellow-500/25 text-yellow-400 text-[9px] font-bold backdrop-blur-sm">★</span>
+                </div>
+
+                {/* Bottom info */}
+                <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                  <div className="font-bold text-white text-sm truncate leading-tight">
+                    {f.symbol || f.project_name}
                   </div>
-                </button>
-              ))}
-            </div>
-          )}
+                  {count <= 2 && (
+                    <div className="text-[10px] text-white/60 truncate leading-tight">
+                      {f.project_name || short(f.contract_address)}
+                    </div>
+                  )}
+                  {count === 1 && f.description && (
+                    <p className="text-[10px] text-white/50 line-clamp-2 mt-0.5">{f.description}</p>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
