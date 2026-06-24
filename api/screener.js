@@ -150,12 +150,13 @@ export default async function handler(req, res) {
         .filter((c) => !c.complete)
         .map(normPump)
         .filter(Boolean)
-        .sort((a, b) => (b.bondingPct ?? 0) - (a.bondingPct ?? 0));
+        .filter((r) => (r.volume ?? 0) >= 1000)
+        .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
 
     } else if (type === "migrated") {
       // sort=last_trade_timestamp, filter complete=true
       const coins = await fetchPump("last_trade_timestamp", limit, (c) => c.complete === true);
-      rows = coins.map(normPump).filter(Boolean).sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+      rows = coins.map(normPump).filter(Boolean).filter((r) => (r.volume ?? 0) >= 1000).sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
       // Fallback to DexScreener pumpswap if pump.fun returns nothing
       if (!rows.length) {
         rows = await fetchDexMigrated(limit);
@@ -169,6 +170,7 @@ export default async function handler(req, res) {
         .filter((t) => Array.isArray(t.tags) && t.tags.some((tag) => String(tag).toLowerCase().includes("moonshot")))
         .map((t) => { const r = normToken(t, "24h"); if (r) r.isMoonshot = true; return r; })
         .filter(Boolean)
+        .filter((r) => (r.volume ?? 0) >= 1000)
         .sort((a, b) => (b.organicScore ?? 0) - (a.organicScore ?? 0));
       // Fallback: GeckoTerminal new_pools (freshly launched = moonshot candidates)
       if (!rows.length) {
