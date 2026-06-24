@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { getScreener, search, getListings, Row, Listing, fmtUsd, compact, short } from "../lib/api";
+import { getScreener, getTrendingSocial, search, getListings, Row, Listing, SocialItem, fmtUsd, compact, short } from "../lib/api";
 import TokenLogo from "../components/TokenLogo";
 import Change from "../components/Change";
 import Verified from "../components/Verified";
@@ -13,12 +13,13 @@ import {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type Category = "discover" | "pumpfun" | "curated" | "multichain";
+type Category = "discover" | "pumpfun" | "curated" | "multichain" | "social";
 type Tab =
-  | "trending" | "runners" | "new" | "pumping"       // Discover
+  | "trending" | "runners" | "new" | "fomo" | "jupiter" // Discover
   | "unbonded" | "migrated" | "moonshot"             // Pump.fun
   | "og" | "celebrity" | "organic" | "listed"        // Curated
-  | "multichain";                                    // Multi-chain
+  | "multichain"                                     // Multi-chain
+  | "social";                                        // Trending Social
 
 interface TabDef {
   id: Tab;
@@ -35,6 +36,7 @@ const CATEGORIES: { id: Category; label: string; icon: any }[] = [
   { id: "pumpfun",    label: "Pump.fun",    icon: Activity },
   { id: "curated",    label: "Curated",     icon: Crown },
   { id: "multichain", label: "Multi-chain", icon: Globe },
+  { id: "social",     label: "Trending",    icon: TrendingUp },
 ];
 
 const TABS_BY_CAT: Record<Category, TabDef[]> = {
@@ -42,7 +44,8 @@ const TABS_BY_CAT: Record<Category, TabDef[]> = {
     { id: "trending", label: "Trending",  icon: Flame,       desc: "Top traded right now" },
     { id: "runners",  label: "Runners",   icon: TrendingUp,  desc: "Biggest 24h gainers", noInterval: true },
     { id: "new",      label: "New",       icon: Sparkles,    desc: "Recently launched",   noInterval: true },
-    { id: "pumping",  label: "Pumping",   icon: Zap,         desc: "Spiking in last 1h",  noInterval: true },
+    { id: "fomo",     label: "FOMO",      icon: Zap,         desc: "Highest 1h spikes",   noInterval: true },
+    { id: "jupiter",  label: "Jupiter",   icon: Star,        desc: "Jupiter-verified & listed", noInterval: true },
   ],
   pumpfun: [
     { id: "unbonded", label: "Unbonded",  icon: Activity,    desc: "Still bonding on pump.fun",  noInterval: true },
@@ -58,10 +61,13 @@ const TABS_BY_CAT: Record<Category, TabDef[]> = {
   multichain: [
     { id: "multichain", label: "Trending", icon: TrendingUp,  desc: "Trending pools on this chain", noInterval: true },
   ],
+  social: [
+    { id: "social", label: "Feed", icon: Flame, desc: "Trending tokens with why they're moving", noInterval: true },
+  ],
 };
 
 const DEFAULT_TAB: Record<Category, Tab> = {
-  discover: "trending", pumpfun: "unbonded", curated: "og", multichain: "multichain",
+  discover: "trending", pumpfun: "unbonded", curated: "og", multichain: "multichain", social: "social",
 };
 
 const INTERVALS = ["5m","1h","6h","24h"];
@@ -90,6 +96,7 @@ export default function Screener() {
   const [interval, setInterval] = useState("24h");
   const [chain, setChain]       = useState("ethereum");
   const [rows, setRows]         = useState<Row[]>([]);
+  const [socialItems, setSocialItems] = useState<SocialItem[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading]   = useState(true);
   const [sort, setSort]         = useState<SortKey>("volume");
@@ -99,7 +106,8 @@ export default function Screener() {
   const subTabs = TABS_BY_CAT[category];
   const cur = subTabs.find((t) => t.id === tab) || subTabs[0];
   const isMultichain = category === "multichain";
-  const isUnbonded = tab === "unbonded";
+  const isSocial    = category === "social";
+  const isUnbonded  = tab === "unbonded";
 
   // Switch category → switch to that category's default sub-tab
   const switchCategory = (cat: Category) => {
@@ -125,6 +133,9 @@ export default function Screener() {
         } else if (tab === "listed") {
           const d = await getListings();
           if (on) setListings(d.rows || []);
+        } else if (category === "social" || tab === "social") {
+          const d = await getTrendingSocial();
+          if (on) setSocialItems(d.items || []);
         } else if (isMultichain) {
           const d = await getScreener("trending", interval, 100, chain);
           if (on) setRows(d.rows || []);
@@ -135,7 +146,7 @@ export default function Screener() {
       } finally { if (on) setLoading(false); }
     };
     run();
-    const skip = q || tab === "listed" || cur?.noInterval || isMultichain;
+    const skip = q || tab === "listed" || cur?.noInterval || isMultichain || isSocial;
     const auto = skip ? null : window.setInterval(run, 25000);
     return () => { on = false; if (auto) clearInterval(auto); };
   }, [tab, interval, q, chain, category]);
@@ -266,8 +277,10 @@ export default function Screener() {
         </div>
       )}
 
-      {/* ── Listed = card grid ── */}
-      {tab === "listed" && !q ? (
+      {/* ── Social trending feed ── */}
+      {isSocial && !q ? (
+        <SocialFeed items={socialItems} loading={loading} />
+      ) : tab === "listed" && !q ? (
         <ListedView listings={listings} loading={loading} />
       ) : (
         <div className="card overflow-hidden">
@@ -460,4 +473,91 @@ function organicCls(s: number) {
   if (s >= 40) return "bg-accent/15 text-accent";
   if (s >= 20) return "bg-yellow-500/15 text-yellow-400";
   return "bg-down/15 text-down";
+}
+
+// ── Social Trending Feed Component ──────────────────────────────────────────
+function SocialFeed({ items, loading }: { items: SocialItem[]; loading: boolean }) {
+  const nav = useNavigate();
+  if (loading && !items.length) return (
+    <div className="space-y-3">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="card p-4 animate-pulse">
+          <div className="flex gap-3">
+            <div className="w-10 h-10 rounded-full bg-panel2 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-panel2 rounded w-1/3" />
+              <div className="h-3 bg-panel2 rounded w-2/3" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+  if (!items.length) return (
+    <div className="card p-12 text-center text-muted">No trending data available right now.</div>
+  );
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => {
+        const canNav = item.chain === "solana" && item.mint;
+        return (
+          <div
+            key={(item.mint || item.symbol || i) + i}
+            onClick={() => canNav ? nav(`/token/${item.mint}`) : null}
+            className={`card p-4 transition-all border border-line hover:border-accent/30
+              ${canNav ? "cursor-pointer hover:bg-panel2/50" : "cursor-default"}`}
+          >
+            <div className="flex items-start gap-3">
+              {/* Token logo */}
+              <TokenLogo src={item.icon} sym={item.symbol || "?"} />
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="font-semibold text-sm">{item.symbol || short(item.mint || "?")}</span>
+                  {item.name && item.name !== item.symbol && (
+                    <span className="text-muted text-xs">{item.name}</span>
+                  )}
+                  {item.chain && item.chain !== "solana" && (
+                    <span className="pill bg-panel2 text-muted text-[9px] uppercase">{item.chain}</span>
+                  )}
+                  <span className={`pill text-[9px] uppercase ml-auto
+                    ${item.source === "coingecko" ? "bg-green-500/15 text-green-400" :
+                      item.source === "geckoterminal" ? "bg-accent/15 text-accent" :
+                      "bg-panel2 text-muted"}`}>
+                    {item.source === "coingecko" ? "CoinGecko"
+                      : item.source === "geckoterminal" ? "GeckoTerminal"
+                      : "DexScreener"}
+                  </span>
+                </div>
+
+                {/* Primary reason */}
+                <p className="text-sm text-white/80 font-medium mb-1">{item.reason}</p>
+
+                {/* Additional reasons */}
+                {item.reasons?.slice(1).map((r, j) => (
+                  <p key={j} className="text-xs text-muted">{r}</p>
+                ))}
+
+                {/* Stats */}
+                {(item.priceUsd != null || item.mcap != null || item.change24h != null) && (
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted">
+                    {item.priceUsd != null && <span>${item.priceUsd < 0.01 ? item.priceUsd.toExponential(2) : item.priceUsd.toFixed(4)}</span>}
+                    {item.mcap != null && <span>MC ${compact(item.mcap)}</span>}
+                    {item.change24h != null && (
+                      <Change v={item.change24h} className="text-xs" />
+                    )}
+                    {item.volume != null && <span>Vol ${compact(item.volume)}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-center text-xs text-muted/50 pt-2">
+        Data from GeckoTerminal · CoinGecko · DexScreener
+      </p>
+    </div>
+  );
 }
