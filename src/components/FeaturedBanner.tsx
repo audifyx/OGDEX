@@ -116,28 +116,42 @@ export default function FeaturedBanner() {
                 key={f.id}
                 onClick={() => handleToken(f)}
                 className="group relative aspect-square rounded-xl overflow-hidden border border-line hover:border-yellow-500/40 transition-all hover:scale-[1.02]"
-                style={{
-                  background: f.banner_url
-                    ? `linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.80) 100%), url(${f.banner_url}) center/cover`
-                    : "var(--color-panel2)",
-                }}
               >
-                {/* Logo */}
-                <div className="absolute top-2.5 left-2.5">
+                {/* Background: if banner exists use it, else blow up the token logo blurred to fill */}
+                {(f.banner_url || f.logo_url) ? (
+                  <>
+                    <img
+                      src={f.banner_url || f.logo_url!}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      style={f.banner_url
+                        ? {}
+                        : { filter: "blur(24px) saturate(1.6) brightness(0.6)", transform: "scale(1.5)" }}
+                    />
+                    <div
+                      className="absolute inset-0"
+                      style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.72) 100%)" }}
+                    />
+                  </>
+                ) : (
+                  <div className="absolute inset-0 bg-panel2" />
+                )}
+
+                {/* Token logo circle — sits on top of background */}
+                <div className="absolute top-2.5 left-2.5 z-10">
                   {f.logo_url
-                    ? <img src={f.logo_url} className="w-9 h-9 rounded-full border-2 border-white/20 object-cover shadow-lg" />
+                    ? <img src={f.logo_url} className="w-9 h-9 rounded-full border-2 border-white/30 object-cover shadow-lg" />
                     : <div className="w-9 h-9 rounded-full bg-panel2 border-2 border-line grid place-items-center text-xs font-bold text-muted">
                         {(f.symbol || "?").slice(0, 2)}
                       </div>}
                 </div>
 
                 {/* Featured star badge */}
-                <div className="absolute top-2.5 right-2.5">
+                <div className="absolute top-2.5 right-2.5 z-10">
                   <span className="pill bg-yellow-500/25 text-yellow-400 text-[9px] font-bold backdrop-blur-sm">★</span>
                 </div>
 
                 {/* Bottom info */}
-                <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                <div className="absolute bottom-0 left-0 right-0 p-2.5 z-10">
                   <div className="font-bold text-white text-sm truncate leading-tight">
                     {f.symbol || f.project_name}
                   </div>
