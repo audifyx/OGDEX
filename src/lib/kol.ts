@@ -20,7 +20,7 @@ const post = (u: string, b: any) => fetch(u, { method: "POST", headers: { "Conte
 
 export const getKols = () => j<{ ok: boolean; kols: Kol[] }>(`/api/kols`);
 export const getKolProfile = (address: string) => j<{ ok: boolean; kol: Kol; wallets: { address: string; label: string; primary: boolean }[] }>(`/api/kols?address=${address}`);
-export const getKolActivity = (address: string, limit = 15) => j<{ ok: boolean; activity: KolActivity[] }>(`/api/kol-activity?address=${address}&limit=${limit}`);
+export const getKolActivity = (address: string, limit = 15) => j<{ ok: boolean; activity: KolActivity[] }>(`/api/kols?activity=${address}&limit=${limit}`);
 export const addKol = (body: any) => post(`/api/kols`, body);
 
 export function getKolFeed(opts: { side?: string; kolId?: string; limit?: number } = {}) {
@@ -28,7 +28,8 @@ export function getKolFeed(opts: { side?: string; kolId?: string; limit?: number
   if (opts.side) p.set("side", opts.side);
   if (opts.kolId) p.set("kolId", opts.kolId);
   p.set("limit", String(opts.limit || 60));
-  return j<{ ok: boolean; feed: KolFeedItem[] }>(`/api/kol-feed?${p.toString()}`);
+  p.set("feed", "1");
+  return j<{ ok: boolean; feed: KolFeedItem[] }>(`/api/kols?${p.toString()}`);
 }
 
 // directory map address -> KOL info, fetched once and reused for holder labeling.
