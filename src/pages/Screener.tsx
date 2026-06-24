@@ -8,7 +8,7 @@ import FeaturedBanner from "../components/FeaturedBanner";
 import {
   Flame, Sprout, Sparkles, ArrowUpDown, Loader2, Droplets, TrendingUp, Crown,
   Star, Rocket, BadgeCheck, Moon, Zap, Unlink, Globe, ChevronRight, Activity,
-  CheckCircle2, Grid3x3
+  CheckCircle2, Grid3x3, Users
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -16,10 +16,10 @@ import {
 type Category = "discover" | "pumpfun" | "curated" | "multichain" | "social";
 type Tab =
   | "trending" | "runners" | "new" | "fomo" | "jupiter" // Discover
-  | "unbonded" | "migrated" | "moonshot"             // Pump.fun
-  | "og" | "celebrity" | "organic" | "listed"        // Curated
-  | "multichain"                                     // Multi-chain
-  | "social";                                        // Trending Social
+  | "unbonded" | "migrated" | "moonshot" | "newpairs"  // Pump.fun
+  | "og" | "kols" | "celebrity" | "organic" | "listed" // Curated
+  | "multichain"                                      // Multi-chain
+  | "social";                                         // Trending Social
 
 interface TabDef {
   id: Tab;
@@ -45,21 +45,23 @@ const TABS_BY_CAT: Record<Category, TabDef[]> = {
     { id: "runners",  label: "Runners",   icon: TrendingUp,  desc: "Biggest 24h gainers", noInterval: true },
     { id: "new",      label: "New",       icon: Sparkles,    desc: "Recently launched",   noInterval: true },
     { id: "fomo",     label: "FOMO",      icon: Zap,         desc: "Highest 1h spikes",   noInterval: true },
-    { id: "jupiter",  label: "Jupiter",   icon: Star,        desc: "Jupiter-verified & listed", noInterval: true },
+    { id: "jupiter",  label: "Jupiter ✓", icon: BadgeCheck,  desc: "Jupiter-verified tokens with real volume", noInterval: true },
   ],
   pumpfun: [
-    { id: "unbonded", label: "Unbonded",  icon: Activity,    desc: "Still bonding on pump.fun",  noInterval: true },
-    { id: "migrated", label: "Migrated",  icon: Rocket,      desc: "Graduated to Raydium",       noInterval: true },
-    { id: "moonshot", label: "Moonshot",  icon: Moon,        desc: "Launched via Moonshot",       noInterval: true },
+    { id: "unbonded",  label: "Unbonded",   icon: Activity,    desc: "Actively trading on bonding curve",  noInterval: true },
+    { id: "migrated",  label: "Migrated",   icon: Rocket,      desc: "Graduated — sorted by volume",       noInterval: true },
+    { id: "moonshot",  label: "Moonshot",   icon: Moon,        desc: "Moonshot-verified launches",          noInterval: true },
+    { id: "newpairs",  label: "New Pairs",  icon: Sparkles,    desc: "Freshest coins on pump.fun",          noInterval: true },
   ],
   curated: [
-    { id: "og",        label: "OG",        icon: Crown,       desc: "Established verified tokens",   noInterval: true },
-    { id: "celebrity", label: "Celebrity", icon: Star,        desc: "Celebrity & influencer tokens", noInterval: true },
-    { id: "organic",   label: "Organic",   icon: Sprout,      desc: "Real organic growth" },
-    { id: "listed",    label: "Listed",    icon: BadgeCheck,  desc: "Community-listed tokens",       noInterval: true },
+    { id: "og",        label: "OG",         icon: Crown,       desc: "Established verified tokens",   noInterval: true },
+    { id: "kols",      label: "KOL Picks",  icon: Users,       desc: "Most bought by tracked KOLs",   noInterval: true },
+    { id: "celebrity", label: "Celebrity",  icon: Star,        desc: "Celebrity & influencer tokens", noInterval: true },
+    { id: "organic",   label: "Organic",    icon: Sprout,      desc: "Real organic growth" },
+    { id: "listed",    label: "Listed",     icon: BadgeCheck,  desc: "Community-listed tokens",       noInterval: true },
   ],
   multichain: [
-    { id: "multichain", label: "Trending", icon: TrendingUp,  desc: "Trending pools on this chain", noInterval: true },
+    { id: "multichain", label: "Trending", icon: TrendingUp,  desc: "Trending pools sorted by volume", noInterval: true },
   ],
   social: [
     { id: "social", label: "Feed", icon: Flame, desc: "Trending tokens with why they're moving", noInterval: true },
@@ -107,7 +109,7 @@ export default function Screener() {
   const cur = subTabs.find((t) => t.id === tab) || subTabs[0];
   const isMultichain = category === "multichain";
   const isSocial    = category === "social";
-  const isUnbonded  = tab === "unbonded";
+  const isUnbonded  = tab === "unbonded" || tab === "newpairs";
 
   // Switch category → switch to that category's default sub-tab
   const switchCategory = (cat: Category) => {
