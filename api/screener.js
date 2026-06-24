@@ -26,21 +26,47 @@ function normPump(t) {
   };
 }
 
-function normGecko(item) {
+// normGecko — enriched with included base_token data (logo, symbol, name, address)
+function normGecko(item, tokenMap = {}) {
+  if (!item) return null;
   const a = item.attributes || {};
+  const rel = item.relationships || {};
+  const networkId = rel.network?.data?.id || "?";
+
+  // Use included base_token if available
+  const baseTokenId = rel.base_token?.data?.id;
+  const baseToken = tokenMap[baseTokenId] || {};
+
+  // Pool name is usually "BASE / QUOTE" — grab the base
+  const nameParts = (a.name || "").split(" / ");
+  const baseName = nameParts[0]?.trim() || null;
+
+  // Prefer included token data for accuracy
+  const symbol = baseToken.symbol || baseName || null;
+  const name   = baseToken.name   || baseName || null;
+  const icon   = baseToken.image_url || null;
+  // Contract address: included token address > a.address
+  const mint   = baseToken.address || a.address || item.id || null;
+
+  if (!mint) return null;
+
   return {
-    mint: a.address || item.id,
-    name: a.name ? a.name.split(" / ")[0] : null,
-    symbol: a.name ? a.name.split(" / ")[0] : null,
-    icon: null,
-    priceUsd: num(a.base_token_price_usd),
-    mcap: num(a.market_cap_usd ?? a.fdv_usd),
+    mint,
+    name,
+    symbol,
+    icon,
+    priceUsd:  num(a.base_token_price_usd),
+    mcap:      num(a.market_cap_usd ?? a.fdv_usd),
     liquidity: num(a.reserve_in_usd),
-    volume: num(a.volume_usd?.h24),
+    volume:    num(a.volume_usd?.h24),
+    change5m:  num(a.price_change_percentage?.m5),
+    change1h:  num(a.price_change_percentage?.h1),
+    change6h:  null,
     change24h: num(a.price_change_percentage?.h24),
     holderCount: null,
-    chain: item.relationships?.network?.data?.id || "?",
+    chain: networkId,
     dex: a.dex_id || null,
+    poolAddress: item.id || null,
     _source: "gecko",
   };
 }
@@ -49,10 +75,10 @@ function normGecko(item) {
 
 export default async function handler(req, res) {
   const url = new URL(req.url, "http://x");
-  const type = url.searchParams.get("type") || "trending";
+  const type     = url.searchParams.get("type") || "trending";
   const interval = url.searchParams.get("interval") || "24h";
-  const limit = Math.min(Number(url.searchParams.get("limit")) || 100, 200);
-  const chain = (url.searchParams.get("chain") || "solana").toLowerCase();
+  const limit    = Math.min(Number(url.searchParams.get("limit")) || 100, 200);
+  const chain    = (url.searchParams.get("chain") || "solana").toLowerCase();
   cache(res, 15, 45);
 
   try {
@@ -65,19 +91,27 @@ export default async function handler(req, res) {
         arbitrum: "arbitrum", avalanche: "avax", sui: "sui-network", ton: "ton",
       };
       const net = netMap[chain] || chain;
-      const sortBy = type === "new" ? "pool_created_at" : "h24_volume_usd";
+
+      // include=base_token gives us symbol, name, image_url per token
       const gt = await fetch(
-        `https://api.geckoterminal.com/api/v2/networks/${net}/trending_pools?page=1`,
+        `https://api.geckoterminal.com/api/v2/networks/${net}/trending_pools?page=1&include=base_token`,
         { headers: { Accept: "application/json;version=20230302" } }
       ).then((r) => r.json());
-      rows = (gt.data || []).map(normGecko).filter(Boolean);
+
+      // Build lookup map: included token id → attributes
+      const tokenMap = {};
+      for (const inc of (gt.included || [])) {
+        if (inc.type === "token") tokenMap[inc.id] = inc.attributes;
+      }
+
+      rows = (gt.data || []).map((p) => normGecko(p, tokenMap)).filter(Boolean);
       return send(res, 200, { type, interval, chain, count: rows.length, rows });
     }
 
     // ── SOLANA TABS ──────────────────────────────────────────────────────────
 
     if (type === "moonshot") {
-      // Use Jupiter tag=moonshot (verified Moonshot-launched tokens on Solana)
+      // Jupiter tag=moonshot — verified Moonshot-launched tokens
       try {
         const d = await jup(`/tokens/v2/tag?query=moonshot`);
         const all = Array.isArray(d) ? d : [];
@@ -86,16 +120,19 @@ export default async function handler(req, res) {
           .filter(Boolean)
           .sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0));
       } catch {}
-      // If tag returns nothing, try Jupiter search for "moonshot"
+      // Fallback: search "moonshot" on Jupiter
       if (!rows.length) {
         try {
-          const d = await jup(`/tokens/v2/search?query=moonshot&limit=50`);
-          rows = (Array.isArray(d) ? d : []).map((t) => normToken(t, interval)).filter(Boolean);
+          const d = await jup(`/tokens/v2/toptraded/24h?limit=${limit}`);
+          rows = (Array.isArray(d) ? d : [])
+            .map((t) => normToken(t, interval))
+            .filter(Boolean)
+            .filter((r) => r.tags?.includes("moonshot") || (r.name || "").toLowerCase().includes("moon"));
         } catch {}
       }
 
-    } else if (type === "fomo") {
-      // FOMO: tokens with high 1h gain — top traded 1h sorted by price change
+    } else if (type === "pumping") {
+      // Pumping: high 1h gain — top traded 1h sorted by 1h price change
       const d = await jup(`/tokens/v2/toptraded/1h?limit=${limit}`);
       rows = (Array.isArray(d) ? d : [])
         .map((t) => normToken(t, "1h"))
@@ -112,12 +149,11 @@ export default async function handler(req, res) {
         );
         const d = await resp.json();
         const coins = Array.isArray(d) ? d : (d.coins || []);
-        // Filter to only unbonded (bonding_curve_progress < 100 and complete !== true)
         rows = coins
           .filter((c) => c.complete !== true && (c.bonding_curve_progress ?? 100) < 100)
           .map(normPump)
           .filter(Boolean)
-          .sort((a, b) => (b.bondingPct ?? 0) - (a.bondingPct ?? 0)); // highest progress first (closest to graduating)
+          .sort((a, b) => (b.bondingPct ?? 0) - (a.bondingPct ?? 0));
       } catch (e) {
         return send(res, 200, { type, rows: [], error: `pump.fun: ${String(e?.message || e)}` });
       }
@@ -127,15 +163,31 @@ export default async function handler(req, res) {
       rows = (Array.isArray(data) ? data : []).map((t) => normToken(t, interval)).filter(Boolean);
 
     } else if (type === "migrated") {
-      const d = await callFn("pumpfun-migrations", { limit });
-      rows = (d.migrations || []).map((m) => ({
-        mint: m.mint || m.address || m.id, name: m.name, symbol: m.symbol,
-        icon: m.image || m.icon || m.logo || null,
-        priceUsd: num(m.priceUsd ?? m.price_usd ?? m.price),
-        mcap: num(m.marketCap ?? m.market_cap ?? m.mcap ?? m.usd_market_cap),
-        liquidity: num(m.liquidity), holderCount: num(m.holderCount ?? m.holders),
-        volume: num(m.volume24h ?? m.volume),
-      })).filter((r) => r.mint);
+      // Pump.fun coins that recently completed bonding (complete=true), sorted by completion
+      try {
+        const resp = await fetch(
+          `https://frontend-api.pump.fun/coins?limit=${limit}&offset=0&sort=last_trade_timestamp&order=DESC&includeNsfw=false`,
+          { headers: { Accept: "application/json" } }
+        );
+        const d = await resp.json();
+        const coins = Array.isArray(d) ? d : (d.coins || []);
+        rows = coins
+          .filter((c) => c.complete === true || (c.bonding_curve_progress ?? 0) >= 100)
+          .map(normPump)
+          .filter(Boolean)
+          .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+      } catch {
+        // Fallback to edge function
+        const d = await callFn("pumpfun-migrations", { limit });
+        rows = (d.migrations || []).map((m) => ({
+          mint: m.mint || m.address || m.id, name: m.name, symbol: m.symbol,
+          icon: m.image || m.icon || m.logo || null,
+          priceUsd: num(m.priceUsd ?? m.price_usd ?? m.price),
+          mcap: num(m.marketCap ?? m.market_cap ?? m.mcap ?? m.usd_market_cap),
+          liquidity: num(m.liquidity), holderCount: num(m.holderCount ?? m.holders),
+          volume: num(m.volume24h ?? m.volume),
+        })).filter((r) => r.mint);
+      }
 
     } else if (type === "og") {
       const data = await jup(`/tokens/v2/tag?query=verified`);
