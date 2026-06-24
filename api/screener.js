@@ -17,6 +17,18 @@ function dedup(rows) {
   });
 }
 
+// ── Dedup by symbol ticker (pump.fun spam — same name, different mint) ────────
+// Keeps the entry with the highest mcap per ticker symbol.
+function dedupBySymbol(rows) {
+  const map = {};
+  for (const r of rows) {
+    const key = (r.symbol || r.name || "").toUpperCase().trim();
+    if (!key) continue;
+    if (!map[key] || (r.mcap ?? 0) > (map[key].mcap ?? 0)) map[key] = r;
+  }
+  return Object.values(map);
+}
+
 // ── Compact formatter ─────────────────────────────────────────────────────────
 const compact = (v) => {
   if (v == null) return null;
@@ -217,16 +229,19 @@ export default async function handler(req, res) {
         rows = dedup([...rows, ...pumpRows]).sort((a, b) => (b.volume ?? b.mcap ?? 0) - (a.volume ?? a.mcap ?? 0)).slice(0, limit);
       }
 
-    // ── Pump.fun: New Pairs (newest coins, any activity) ──────────────────────
+    // ── Pump.fun: New Pairs (newest coins, no symbol spam, must have activity) ──
     } else if (type === "newpairs") {
       const coins = await fetchPump("created_timestamp", 200);
-      rows = dedup(
-        coins
-          .filter(c => !c.complete && (c.usd_market_cap || 0) >= 50)
-          .map(normPump)
-          .filter(Boolean)
-          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-      ).slice(0, limit);
+      // 1. Filter: unbonded only, mcap >= $1000 (someone actually bought in)
+      // 2. Dedup by mint (same address)
+      // 3. Dedup by symbol (pump.fun spam — WENDYS×18 different mints → keep highest mcap)
+      // 4. Sort by newest first
+      const raw = coins
+        .filter(c => !c.complete && (c.usd_market_cap || 0) >= 1000)
+        .map(normPump)
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      rows = dedupBySymbol(dedup(raw)).slice(0, limit);
 
     // ── Moonshot (Jupiter moonshot-verified tag) ──────────────────────────────
     } else if (type === "moonshot") {
@@ -321,19 +336,73 @@ export default async function handler(req, res) {
           .sort((a, b) => b[1] - a[1])
           .slice(0, limit)
           .map(([mint, count]) => ({ mint, kolBuys: count, ...mintMeta[mint] }));
-        // Enrich with Jupiter data
+        if (!topMints.length) throw new Error("no kol feed data");
+
+        // ── Enrich: Jupiter toptraded (price, volume, mcap, changes) ──────────
         const jupData = await jup(`/tokens/v2/toptraded/24h?limit=500`).catch(() => []);
         const jupMap  = {};
         for (const t of (Array.isArray(jupData) ? jupData : [])) jupMap[t.id || t.mint] = t;
+
+        // ── Enrich: GeckoTerminal multi-token (name, symbol, icon fallback) ───
+        // Batch in chunks of 25 — GeckoTerminal limit per request
+        const missedMints = topMints.filter(t => !jupMap[t.mint]).map(t => t.mint);
+        const gtMeta = {};
+        if (missedMints.length > 0) {
+          const chunks = [];
+          for (let i = 0; i < missedMints.length; i += 25) chunks.push(missedMints.slice(i, i + 25));
+          const batches = await Promise.all(
+            chunks.map(chunk =>
+              fetch(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/multi/${chunk.join(",")}`, { headers: GT_HDR })
+                .then(r => r.ok ? r.json() : null).catch(() => null)
+            )
+          );
+          for (const batch of batches) {
+            for (const item of (batch?.data || [])) {
+              const a = item.attributes || {};
+              if (a.address) gtMeta[a.address] = {
+                symbol: a.symbol || null,
+                name: a.name || null,
+                icon: a.image_url || null,
+                priceUsd: num(a.price_in_usd),
+              };
+            }
+          }
+        }
+
         rows = dedup(topMints.map(t => {
           const jt = jupMap[t.mint];
+          const gt = gtMeta[t.mint] || {};
+          // Prefer Jupiter (has full market data), supplement with GeckoTerminal for missing icon/meta
           if (jt) {
             const r = normToken(jt, "24h");
-            if (r) { r.kolBuys = t.kolBuys; return r; }
+            if (r) {
+              r.kolBuys = t.kolBuys;
+              if (!r.icon && gt.icon) r.icon = gt.icon;
+              return r;
+            }
           }
-          return { mint: t.mint, symbol: t.symbol, name: t.symbol, icon: null,
-            priceUsd: t.priceUsd ? num(t.priceUsd) : null, mcap: null, volume: null,
-            liquidity: null, change24h: null, kolBuys: t.kolBuys, _source: "kol" };
+          // GeckoTerminal metadata (no Jupiter entry)
+          if (gt.symbol || gt.name) {
+            return {
+              mint: t.mint,
+              symbol: gt.symbol || t.symbol || null,
+              name: gt.name || t.symbol || null,
+              icon: gt.icon || null,
+              priceUsd: gt.priceUsd ?? (t.priceUsd ? num(t.priceUsd) : null),
+              mcap: null, volume: null, liquidity: null, change24h: null,
+              kolBuys: t.kolBuys, _source: "kol",
+            };
+          }
+          // Last resort: bare entry with whatever we have from kol_feed
+          return {
+            mint: t.mint,
+            symbol: t.symbol || t.mint.slice(0, 6) + "…",
+            name: t.symbol || null,
+            icon: null,
+            priceUsd: t.priceUsd ? num(t.priceUsd) : null,
+            mcap: null, volume: null, liquidity: null, change24h: null,
+            kolBuys: t.kolBuys, _source: "kol",
+          };
         }).filter(Boolean));
       } catch (e) {
         // Fallback: verified tokens with high organic score
