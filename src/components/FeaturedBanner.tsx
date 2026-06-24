@@ -125,7 +125,7 @@ export default function FeaturedBanner() {
                       className="absolute inset-0 w-full h-full object-cover"
                       style={f.banner_url
                         ? {}
-                        : { filter: "blur(24px) saturate(1.6) brightness(0.6)", transform: "scale(1.5)" }}
+                        : { objectFit: "contain", background: "var(--color-panel2)" }}
                     />
                     <div
                       className="absolute inset-0"
