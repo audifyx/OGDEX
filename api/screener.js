@@ -4,61 +4,48 @@ import { OG_MINTS, CELEB_MINTS, fetchMints } from "./_curated.js";
 
 const CHAINS = ["solana","ethereum","bsc","base","polygon","arbitrum","avalanche","sui","ton"];
 
-// Normalise a Pump.fun coin → Row shape
+// ── Normalizers ───────────────────────────────────────────────────────────────
+
 function normPump(t) {
   if (!t || !t.mint) return null;
-  const mc = num(t.usd_market_cap);
-  const progress = num(t.bonding_curve_progress); // 0–100
+  const total = num(t.total_supply) || 1e9;
+  const progress = t.bonding_curve_progress != null
+    ? Math.min(100, Math.round(Number(t.bonding_curve_progress)))
+    : null;
   return {
     mint: t.mint, name: t.name, symbol: t.symbol,
-    icon: t.image_uri || t.icon || null,
-    priceUsd: num(t.usd_market_cap) && num(t.total_supply) ? num(t.usd_market_cap) / num(t.total_supply) : null,
-    mcap: mc, liquidity: null, holderCount: num(t.holder_count ?? t.reply_count),
-    volume: num(t.volume ?? t.volume_24h), change24h: null,
-    bondingPct: progress != null ? Math.min(100, Math.round(progress)) : null,
+    icon: t.image_uri || t.image || null,
+    priceUsd: num(t.price) || (num(t.usd_market_cap) ? num(t.usd_market_cap) / total : null),
+    mcap: num(t.usd_market_cap),
+    liquidity: null,
+    holderCount: num(t.holder_count) || num(t.reply_count),
+    volume: num(t.volume ?? t.volume_24h),
+    change24h: null,
+    bondingPct: progress,
     _source: "pumpfun",
   };
 }
 
-// Normalise a GeckoTerminal pool → Row shape (multi-chain)
 function normGecko(item) {
   const a = item.attributes || {};
-  const baseToken = a.base_token_price_usd;
-  const q = a.quote_token_name || "";
   return {
     mint: a.address || item.id,
     name: a.name ? a.name.split(" / ")[0] : null,
     symbol: a.name ? a.name.split(" / ")[0] : null,
     icon: null,
-    priceUsd: num(baseToken),
+    priceUsd: num(a.base_token_price_usd),
     mcap: num(a.market_cap_usd ?? a.fdv_usd),
     liquidity: num(a.reserve_in_usd),
     volume: num(a.volume_usd?.h24),
     change24h: num(a.price_change_percentage?.h24),
     holderCount: null,
-    chain: item.relationships?.network?.data?.id || "unknown",
+    chain: item.relationships?.network?.data?.id || "?",
     dex: a.dex_id || null,
     _source: "gecko",
   };
 }
 
-// Normalise a Moonshot token
-function normMoonshot(t) {
-  if (!t || !(t.mintAddress || t.mint || t.address)) return null;
-  return {
-    mint: t.mintAddress || t.mint || t.address,
-    name: t.name, symbol: t.symbol,
-    icon: t.icon || t.image || null,
-    priceUsd: num(t.priceUsd ?? t.price),
-    mcap: num(t.marketCap ?? t.mcap ?? t.usdMarketCap),
-    liquidity: num(t.liquidity),
-    volume: num(t.volume24h ?? t.volume),
-    change24h: num(t.priceChange24h ?? t.change24h),
-    holderCount: num(t.holderCount ?? t.holders),
-    _source: "moonshot",
-    isVerified: true,
-  };
-}
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   const url = new URL(req.url, "http://x");
@@ -71,79 +58,68 @@ export default async function handler(req, res) {
   try {
     let rows = [];
 
-    // ─── MULTI-CHAIN via GeckoTerminal ───────────────────────────────────────
+    // ── MULTI-CHAIN (non-Solana) via GeckoTerminal ──────────────────────────
     if (chain !== "solana" && CHAINS.includes(chain)) {
-      const netMap = { ethereum:"eth", bsc:"bsc", base:"base", polygon:"polygon_pos",
-        arbitrum:"arbitrum", avalanche:"avax", sui:"sui-network", ton:"ton" };
+      const netMap = {
+        ethereum: "eth", bsc: "bsc", base: "base", polygon: "polygon_pos",
+        arbitrum: "arbitrum", avalanche: "avax", sui: "sui-network", ton: "ton",
+      };
       const net = netMap[chain] || chain;
-      try {
-        const sort = type === "new" ? "pool_created_at" : "h24_volume_usd";
-        const gt = await fetch(
-          `https://api.geckoterminal.com/api/v2/networks/${net}/trending_pools?page=1`,
-          { headers: { Accept: "application/json;version=20230302" } }
-        ).then((r) => r.json());
-        rows = (gt.data || []).map(normGecko).filter(Boolean);
-      } catch {
-        // fallback: dexscreener
-        try {
-          const ds = await fetch(
-            `https://api.dexscreener.com/latest/dex/tokens/latest?chainIds=${chain}`
-          ).then((r) => r.json());
-          rows = (ds.pairs || ds.tokens || []).slice(0, limit).map((p) => ({
-            mint: p.baseToken?.address || p.tokenAddress,
-            name: p.baseToken?.name, symbol: p.baseToken?.symbol,
-            icon: null, priceUsd: num(p.priceUsd), mcap: num(p.fdv ?? p.marketCap),
-            liquidity: num(p.liquidity?.usd), volume: num(p.volume?.h24),
-            change24h: num(p.priceChange?.h24), chain,
-          })).filter((r) => r.mint);
-        } catch {}
-      }
+      const sortBy = type === "new" ? "pool_created_at" : "h24_volume_usd";
+      const gt = await fetch(
+        `https://api.geckoterminal.com/api/v2/networks/${net}/trending_pools?page=1`,
+        { headers: { Accept: "application/json;version=20230302" } }
+      ).then((r) => r.json());
+      rows = (gt.data || []).map(normGecko).filter(Boolean);
       return send(res, 200, { type, interval, chain, count: rows.length, rows });
     }
 
-    // ─── SOLANA TABS ─────────────────────────────────────────────────────────
+    // ── SOLANA TABS ──────────────────────────────────────────────────────────
+
     if (type === "moonshot") {
+      // Use Jupiter tag=moonshot (verified Moonshot-launched tokens on Solana)
       try {
-        const d = await fetch(
-          `https://api.moonshot.cc/tokens/v1/solana/top?limit=${limit}`,
-          { headers: { Accept: "application/json" } }
-        ).then((r) => r.json());
-        const list = d.tokens || d.results || d || [];
-        rows = (Array.isArray(list) ? list : []).map(normMoonshot).filter(Boolean);
-      } catch {
-        // Fallback: Jupiter tag=moonshot
+        const d = await jup(`/tokens/v2/tag?query=moonshot`);
+        const all = Array.isArray(d) ? d : [];
+        rows = all
+          .map((t) => { const r = normToken(t, interval); if (r) r.isVerified = true; return r; })
+          .filter(Boolean)
+          .sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0));
+      } catch {}
+      // If tag returns nothing, try Jupiter search for "moonshot"
+      if (!rows.length) {
         try {
-          const d = await jup(`/tokens/v2/tag?query=moonshot`);
-          rows = (Array.isArray(d) ? d : []).map((t) => {
-            const r = normToken(t, interval);
-            if (r) r.isVerified = true;
-            return r;
-          }).filter(Boolean);
+          const d = await jup(`/tokens/v2/search?query=moonshot&limit=50`);
+          rows = (Array.isArray(d) ? d : []).map((t) => normToken(t, interval)).filter(Boolean);
         } catch {}
       }
 
     } else if (type === "fomo") {
-      // FOMO tokens: pump.fun top traders + high momentum but not yet trending
-      try {
-        const d = await callFn("pumpfun-trending", { limit });
-        rows = (d.tokens || d.rows || []).map((t) => normToken(t, interval) || normPump(t)).filter(Boolean);
-      } catch {
-        // fallback: Jupiter top organic but short window
-        const d = await jup(`/tokens/v2/toptraded/1h?limit=${limit}`);
-        rows = (Array.isArray(d) ? d : []).map((t) => normToken(t, "1h")).filter(Boolean)
-          .filter((r) => (r.change1h ?? 0) > 5);
-      }
+      // FOMO: tokens with high 1h gain — top traded 1h sorted by price change
+      const d = await jup(`/tokens/v2/toptraded/1h?limit=${limit}`);
+      rows = (Array.isArray(d) ? d : [])
+        .map((t) => normToken(t, "1h"))
+        .filter(Boolean)
+        .filter((r) => (r.change1h ?? 0) > 0 && (r.liquidity ?? 0) > 1000)
+        .sort((a, b) => (b.change1h ?? -999) - (a.change1h ?? -999));
 
     } else if (type === "unbonded") {
-      // Pump.fun tokens still in bonding curve
+      // Pump.fun coins still bonding (complete=false)
       try {
-        const d = await fetch(
-          `https://frontend-api.pump.fun/coins?limit=${limit}&sort=last_trade_timestamp&order=DESC&includeNsfw=false&complete=false`,
+        const resp = await fetch(
+          `https://frontend-api.pump.fun/coins?limit=${limit}&offset=0&sort=last_trade_timestamp&order=DESC&includeNsfw=false`,
           { headers: { Accept: "application/json" } }
-        ).then((r) => r.json());
-        rows = (Array.isArray(d) ? d : []).map(normPump).filter(Boolean);
+        );
+        const d = await resp.json();
+        const coins = Array.isArray(d) ? d : (d.coins || []);
+        // Filter to only unbonded (bonding_curve_progress < 100 and complete !== true)
+        rows = coins
+          .filter((c) => c.complete !== true && (c.bonding_curve_progress ?? 100) < 100)
+          .map(normPump)
+          .filter(Boolean)
+          .sort((a, b) => (b.bondingPct ?? 0) - (a.bondingPct ?? 0)); // highest progress first (closest to graduating)
       } catch (e) {
-        return send(res, 200, { type, rows: [], error: String(e?.message || e) });
+        return send(res, 200, { type, rows: [], error: `pump.fun: ${String(e?.message || e)}` });
       }
 
     } else if (type === "new") {
