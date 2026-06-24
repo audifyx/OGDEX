@@ -11,20 +11,22 @@ import WalletIndex from "./pages/WalletIndex";
 import KolScanner from "./pages/KolScanner";
 import KolProfile from "./pages/KolProfile";
 import Admin from "./pages/Admin";
+import Boost from "./pages/Boost";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Screener />} />
-          <Route path="/token/:mint" element={<TokenDetail />} />
-          <Route path="/submit" element={<Submit />} />
-          <Route path="/wallet" element={<WalletIndex />} />
-          <Route path="/wallet/:address" element={<Wallet />} />
-          <Route path="/kol" element={<KolScanner />} />
-          <Route path="/kol/:address" element={<KolProfile />} />
-          <Route path="/admin" element={<Admin />} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Screener />} />
+          <Route path="token/:mint" element={<TokenDetail />} />
+          <Route path="submit" element={<Submit />} />
+          <Route path="boost" element={<Boost />} />
+          <Route path="wallet" element={<WalletIndex />} />
+          <Route path="wallet/:address" element={<Wallet />} />
+          <Route path="kol" element={<KolScanner />} />
+          <Route path="kol/:address" element={<KolProfile />} />
+          <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
     </BrowserRouter>
