@@ -119,7 +119,7 @@ export default function TokenDetail() {
         <Stat label="Liquidity" value={t.liquidity != null ? "$" + compact(t.liquidity) : "—"} />
         <Stat label="24h Volume" value={t.volume != null ? "$" + compact(t.volume) : "—"} />
         <Stat label="Holders" value={fmtNum(meta.holderCount ?? t.holderCount ?? safety?.totalHolders)} />
-        <Stat label="ATH MCap" value={meta.athMcap ? fmtUsd(meta.athMcap, { compact: true }) : "—"} />
+        <Stat label="ATH MCap" value={(d.athMcap || meta?.athMcap) ? fmtUsd(d.athMcap || meta.athMcap, { compact: true }) : "—"} />
         <Stat label="Whales" value={String(whales)} sub={whales === 0 ? "healthy" : "concentration"} />
         <Stat label="Organic Score" value={t.organicScore != null ? Math.round(t.organicScore) + "/100" : "—"} sub={meta.organicScoreLabel} />
         <Stat label="Token Age" value={meta.ageDays != null ? meta.ageDays + "d" : "—"} />
@@ -231,7 +231,7 @@ function Overview({ d, t, meta, safety, trades }: any) {
         <Row label="Market cap" value={fmtUsd(t.mcap ?? meta.mcap, { compact: true })} />
         <Row label="FDV" value={fmtUsd(t.fdv ?? meta.fdv, { compact: true })} />
         <Row label="Liquidity" value={t.liquidity ? "$" + compact(t.liquidity) : "—"} />
-        <Row label="ATH market cap" value={meta.athMcap ? fmtUsd(meta.athMcap, { compact: true }) : "—"} />
+        <Row label="ATH market cap" value={(d.athMcap || meta?.athMcap) ? fmtUsd(d.athMcap || meta.athMcap, { compact: true }) : "—"} />
         <Row label="Total supply" value={compact(t.totalSupply ?? meta.totalSupply)} />
         <Row label="Circulating" value={compact(t.circSupply ?? meta.circSupply)} />
         <Row label="Created" value={meta.createdAt ? new Date(meta.createdAt).toLocaleDateString() + (meta.ageDays != null ? ` (${meta.ageDays}d)` : "") : "—"} />
