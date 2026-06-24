@@ -82,6 +82,36 @@ async function activity(res, sp) {
   } catch (e) { return send(res, 200, { ok: false, error: String(e?.message || e), activity: [] }); }
 }
 
+const GT_HDR = { Accept: "application/json;version=20230302" };
+
+// Batch-enrich a list of mints with token metadata from GeckoTerminal
+async function enrichMints(mints) {
+  const unique = [...new Set(mints.filter(Boolean))];
+  if (!unique.length) return {};
+  const meta = {};
+  // Chunk into groups of 25 (GeckoTerminal limit)
+  const chunks = [];
+  for (let i = 0; i < unique.length; i += 25) chunks.push(unique.slice(i, i + 25));
+  await Promise.all(chunks.map(async (chunk) => {
+    try {
+      const r = await fetch(
+        `https://api.geckoterminal.com/api/v2/networks/solana/tokens/multi/${chunk.join(",")}`,
+        { headers: GT_HDR }
+      );
+      const d = r.ok ? await r.json() : null;
+      for (const item of (d?.data || [])) {
+        const a = item.attributes || {};
+        if (a.address) meta[a.address] = {
+          name: a.name || null,
+          symbol: a.symbol || null,
+          icon: a.image_url || null,
+        };
+      }
+    } catch {}
+  }));
+  return meta;
+}
+
 async function feed(res, sp) {
   const limit = Math.min(Number(sp.get("limit")) || 60, 120);
   const side = sp.get("side"); const kolId = sp.get("kolId"); const token = sp.get("token");
@@ -93,13 +123,34 @@ async function feed(res, sp) {
     if (kolId) q += `&kol_id=eq.${kolId}`;
     if (token) q += `&or=(token_in.eq.${token},token_out.eq.${token})`;
     const rows = await dbSelect("ogdex_kol_feed", q);
-    return send(res, 200, { ok: true, count: rows.length, feed: rows.map(fmtFeed) });
+
+    // Collect mints that are missing symbol/name and enrich them
+    const missingMints = [...new Set(
+      rows
+        .map(r => r.tx_type === "buy" ? r.token_out : r.token_in)
+        .filter(m => m && m !== SOL)
+    )];
+    const tokenMeta = missingMints.length ? await enrichMints(missingMints) : {};
+
+    return send(res, 200, { ok: true, count: rows.length, feed: rows.map(r => fmtFeed(r, tokenMeta)) });
   } catch (e) { return send(res, 200, { ok: false, error: String(e?.message || e), feed: [] }); }
 }
-function fmtFeed(r) {
-  const buy = r.tx_type === "buy"; const mint = buy ? r.token_out : r.token_in; const symbol = buy ? r.symbol_out : r.symbol_in;
-  return { id: r.id, side: r.tx_type, kolId: r.kol_id, kolAddress: r.kol_address, name: r.name, twitter: r.x_handle, tags: r.tags || [], avatar: r.image_url, kolStatus: r.kol_status,
-    mint, symbol, tokenAmount: buy ? r.amount_out : r.amount_in, solAmount: buy ? r.amount_in : r.amount_out, priceUsd: r.price_usd,
+function fmtFeed(r, tokenMeta = {}) {
+  const buy = r.tx_type === "buy";
+  const mint   = buy ? r.token_out : r.token_in;
+  const dbSym  = buy ? r.symbol_out : r.symbol_in;
+  const enriched = (mint && tokenMeta[mint]) || {};
+  // Prefer enriched metadata from GeckoTerminal; fall back to DB value
+  const symbol    = enriched.symbol || dbSym || null;
+  const tokenName = enriched.name   || dbSym || null;
+  const tokenIcon = enriched.icon   || null;
+  return {
+    id: r.id, side: r.tx_type, kolId: r.kol_id, kolAddress: r.kol_address,
+    name: r.name, twitter: r.x_handle, tags: r.tags || [], avatar: r.image_url, kolStatus: r.kol_status,
+    mint, symbol, tokenName, tokenIcon,
+    tokenAmount: buy ? r.amount_out : r.amount_in,
+    solAmount:   buy ? r.amount_in  : r.amount_out,
+    priceUsd: r.price_usd,
     usdValue: (r.price_usd && (buy ? r.amount_out : r.amount_in)) ? r.price_usd * (buy ? r.amount_out : r.amount_in) : null,
     time: r.tx_timestamp ? new Date(r.tx_timestamp).getTime() : null, txHash: r.tx_hash };
 }
