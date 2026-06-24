@@ -128,7 +128,7 @@ function Leaderboard() {
             <table className="w-full text-sm min-w-[820px]">
               <thead><tr className="text-muted text-xs border-b border-line">
                 <th className="text-left px-4 py-2.5">KOL</th><th className="text-left px-2 py-2.5">Twitter</th><th className="text-left px-2 py-2.5">Wallet</th>
-                <th className="text-left px-2 py-2.5">Tags</th><th className="text-right px-2 py-2.5">Followers</th><th className="text-left px-4 py-2.5">Status</th>
+                <th className="text-left px-2 py-2.5">Tags</th><th className="text-right px-2 py-2.5">Followers</th><th className="text-right px-2 py-2.5">PnL (recent)</th><th className="text-right px-2 py-2.5">Win%</th><th className="text-left px-4 py-2.5">Status</th>
               </tr></thead>
               <tbody>
                 {rows.map((k) => (
@@ -138,6 +138,8 @@ function Leaderboard() {
                     <td className="px-2 py-2.5"><Copyable text={k.address} display={short(k.address)} className="text-xs" /></td>
                     <td className="px-2 py-2.5"><div className="flex gap-1 flex-wrap">{(k.tags || []).slice(0, 3).map((t) => <span key={t} className={`pill text-[9px] !px-1.5 !py-0 ${tagClass(t)}`}>{t}</span>)}</div></td>
                     <td className="px-2 py-2.5 text-right tabular-nums">{k.followers != null ? compact(k.followers) : "—"}</td>
+                    <td className={`px-2 py-2.5 text-right tabular-nums font-medium ${k.pnl == null ? "text-muted" : k.pnl >= 0 ? "text-up" : "text-down"}`}>{k.pnl == null ? "—" : (k.pnl >= 0 ? "+" : "") + fmtUsd(k.pnl)}</td>
+                    <td className="px-2 py-2.5 text-right tabular-nums">{k.winRate == null ? "—" : k.winRate + "%"}</td>
                     <td className="px-4 py-2.5">{k.status === "disputed" ? <span className="pill bg-down/15 text-down text-[10px]">disputed</span> : <span className="pill bg-up/10 text-up text-[10px]">active</span>}</td>
                   </tr>
                 ))}

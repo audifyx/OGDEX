@@ -1,6 +1,7 @@
-import { callFn, send, cache, dbSelect, dbInsert, readBody, ADMIN_PASS } from "./_lib.js";
+import { callFn, send, cache, dbSelect, dbInsert, dbUpdate, readBody, ADMIN_PASS } from "./_lib.js";
 import { parseSwap } from "./_swap.js";
 import { enrichTokens } from "./_market.js";
+import { computePnl } from "./_pnl.js";
 import { readFileSync } from "fs";
 
 const SOL = "So11111111111111111111111111111111111111112";
@@ -26,6 +27,7 @@ export default async function handler(req, res) {
   if (req.method === "POST") return add(req, res);
   const sp = url.searchParams;
 
+  if (sp.get("pnl")) return pnlRefresh(res, sp);
   if (sp.get("directory")) return directory(res);
   if (sp.get("feed")) return feed(res, sp);
   if (sp.get("activity")) return activity(res, sp);
@@ -137,6 +139,20 @@ async function ingestBatch(sp) {
       });
     } catch {}
   }
+}
+
+async function pnlRefresh(res, sp) {
+  if (sp.get("pass") !== String(ADMIN_PASS)) return send(res, 401, { ok: false, error: "unauthorized" });
+  const batch = Math.min(Number(sp.get("batch")) || 10, 14);
+  const offset = Number(sp.get("offset")) || 0;
+  try {
+    const kols = await dbSelect("kol_profiles", `select=id,wallet_address&order=name.asc&offset=${offset}&limit=${batch}`);
+    let n = 0;
+    for (const k of kols) {
+      try { const r = await computePnl(k.wallet_address, 40); await dbUpdate("kol_profiles", `id=eq.${k.id}`, { pnl: Math.round(r.realizedPnlUsd * 100) / 100, win_rate: r.winRate }); n++; } catch {}
+    }
+    return send(res, 200, { ok: true, updated: n, offset, batch });
+  } catch (e) { return send(res, 200, { ok: false, error: String(e?.message || e) }); }
 }
 
 async function add(req, res) {

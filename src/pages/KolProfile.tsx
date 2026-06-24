@@ -41,6 +41,10 @@ export default function KolProfile() {
             </div>
             {kol.twitter && <a href={kol.twitterUrl || "#"} target="_blank" rel="noreferrer" className="text-accent/80 hover:text-accent text-sm">{kol.twitter}</a>}
             <div className="mt-1"><Copyable text={kol.address} display={short(kol.address)} className="text-xs text-muted" /></div>
+            <div className="flex gap-4 mt-2 text-sm">
+              <div><span className="text-muted text-xs">PnL (recent) </span><span className={`font-semibold ${kol.pnl == null ? "text-muted" : kol.pnl >= 0 ? "text-up" : "text-down"}`}>{kol.pnl == null ? "—" : (kol.pnl >= 0 ? "+" : "") + fmtUsd(kol.pnl)}</span></div>
+              <div><span className="text-muted text-xs">Win rate </span><span className="font-semibold">{kol.winRate == null ? "—" : kol.winRate + "%"}</span></div>
+            </div>
           </div>
           <div className="sm:ml-auto flex flex-wrap gap-2">
             <button onClick={() => setWatched(toggleWatch(address))} className={`btn inline-flex items-center gap-1.5 ${watched ? "bg-accent text-black font-semibold" : "bg-panel2 text-muted hover:text-white"}`}><Star className={`w-3.5 h-3.5 ${watched ? "fill-black" : ""}`} /> {watched ? "Watching" : "Watch"}</button>
