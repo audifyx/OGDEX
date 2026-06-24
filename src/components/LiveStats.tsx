@@ -3,11 +3,11 @@ import { Users, MessageCircle, Share2, TrendingUp, Zap, Calendar } from "lucide-
 export default function LiveStats() {
   const stats = [
     { icon: Users, label: "Active Users", value: "55", color: "text-accent" },
-    { icon: MessageCircle, label: "Telegram Community", value: "185", color: "text-blue-400" },
-    { icon: Share2, label: "X Community", value: "182", color: "text-sky-400" },
-    { icon: TrendingUp, label: "Tokens Listed", value: "847", color: "text-emerald-400" },
-    { icon: Zap, label: "Platform Volume", value: "$2.4M", color: "text-yellow-400" },
-    { icon: Calendar, label: "Days Live", value: "47", color: "text-purple-400" },
+    { icon: MessageCircle, label: "Telegram", value: "185", color: "text-white" },
+    { icon: Share2, label: "X Followers", value: "182", color: "text-white" },
+    { icon: TrendingUp, label: "Tokens Listed", value: "847", color: "text-accent" },
+    { icon: Zap, label: "Volume", value: "$2.4M", color: "text-white" },
+    { icon: Calendar, label: "Days Live", value: "47", color: "text-accent" },
   ];
 
   return (
